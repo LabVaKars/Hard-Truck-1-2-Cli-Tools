@@ -17,7 +17,7 @@ from io import SEEK_CUR
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-log = logging.getLogger("listb3d")
+log = logging.getLogger("list_b3d")
 log.setLevel(logging.DEBUG)
 
 blocksWithChildren = [2,3,4,5,6,7,9,10,11,19,21,22,24,26,29,33,36,37,39]
@@ -27,9 +27,6 @@ def b3dlist(b3dFilename):
     rootObjects = {}
     blocks18 = {}
 
-    tt1 = time.mktime(datetime.datetime.now().timetuple())
-    #Initial Kaitai Struct parsing
-    # log.info('initial parsing b3d start')
     b3d_stream = None
     with open(b3dFilename, 'rb') as file:
         b3d_stream = BytesIO(file.read())
@@ -173,23 +170,13 @@ def b3dlist(b3dFilename):
             
             
             if block_data.get('child_cnt') is not None and block_data.get('child_cnt') > 0:
-                # print('has children')
                 block_data['children'] = []
                 chidren_arrays.append(block_data['children'])
 
-
-            # if level == 0:
-            # print(curObjName)
-            # print(chidren_arrays)
-            # print(level)
-            # print(chidren_arrays[level])
-            # print(block_data)
-            # print(nodes)
             block_data['bname'] = block_name['name']
             block_data['btype'] = block_type
             
             chidren_arrays[level].append(block_data)
-            # print("{}{}".format("  " * level, curObjName))
 
             if level == 0:
                 objName = curObjName
@@ -206,48 +193,4 @@ def b3dlist(b3dFilename):
 
     print(json.dumps(nodes))
 
-    # read end_blocks
-    # b3d.end_blocks = KaitaiStream.resolve_enum(HardTruck2B3d.Identifiers, b3d._io.read_u4le())
-    # log.info('initial parsing b3d end')
-
-    # roots = getHierarchyRoots(blocks18)
-
-
-    # extract_buffer = None
-    # with open(b3dFilename, 'rb') as file:
-    #     extract_buffer = io.BytesIO(file.read())
-
-    # for extBlock in blocksToExtract:
-
-    #     current_buffer = io.BytesIO(extract_buffer.getvalue())
-
-    #     buffer = io.BytesIO()
-    #     g_spaces = set()
-    #     g_root_objs = set()
-    #     g_root_objs.add(extBlock)
-    #     curLevel = [extBlock]
-    #     # curLevel.append(extBlock)
-    #     root_objs = set()
-    #     while len(curLevel) > 0:
-    #         for add in curLevel:
-    #             for block in blocks18[add]:
-    #                 g_spaces.add(block['space_name'])
-    #                 g_root_objs.add(block['add_name'])
-    #                 root_objs.add(block['add_name'])
-    #         curLevel = list(root_objs)
-    #         root_objs = set()
-
-    #     spaces = [cn for cn in list(g_spaces) if cn != EMPTY_NAME]
-
-    #     root_objs = list(g_root_objs)
-
-    #     spaces.sort()
-    #     root_objs.sort(reverse=True)
-
-    #     outfilename = os.path.join(outdir, '{}.b3d'.format(extBlock))
-
-    #     write_split_b3d(outfilename, buffer, current_buffer, used_materials, rootObjects, spaces, root_objs)
-
     tt1 = time.mktime(datetime.datetime.now().timetuple()) - tt1
-
-    # log.info('Completed in {} seconds'.format(tt1))

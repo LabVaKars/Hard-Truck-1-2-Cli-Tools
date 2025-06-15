@@ -16,7 +16,7 @@ from io import SEEK_CUR
 # 2) replace '_pos = self._io.read_bytes(0)' with '_pos = self._io.pos()'
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-log = logging.getLogger("splitb3d")
+log = logging.getLogger("extract_b3d")
 log.setLevel(logging.DEBUG)
 
 
@@ -107,25 +107,19 @@ def get_name(obj):
 EMPTY_NAME = '~'
 
 
-def b3dsplit(b3dFilename, resFilename, rootsFile):
+def b3dextract(b3dFilename, resFilename, outdir, nodesString):
 
-    outdir = os.path.dirname(b3dFilename)
-    rootsFromFile = False
+    if not outdir:
+        outdir = os.path.dirname(b3dFilename)
+    nodesFromCli = False
 
-    if rootsFile:
-        rootsFromFile = True
+    if nodesString:
+        nodesFromCli = True
     if not resFilename:
         resFilename = b3dFilename[:-4] + '.res'
 
     #read roots from text file
     blocksToExtract = []
-    if rootsFromFile:
-        if os.path.exists(rootsFile):
-            with open(rootsFile) as f:
-                for line in f:
-                    l = line.rstrip()
-                    if len(l) > 0:
-                        blocksToExtract.append(l)
 
     rootObjects = {}
     blocks18 = {}
@@ -299,23 +293,16 @@ def b3dsplit(b3dFilename, resFilename, rootsFile):
     # b3d.end_blocks = KaitaiStream.resolve_enum(HardTruck2B3d.Identifiers, b3d._io.read_u4le())
     log.info('initial parsing b3d end')
 
-    roots = getHierarchyRoots(blocks18)
-
-    if not rootsFromFile:
-        blocksToExtract = roots
+    if nodesFromCli:
+        blocksToExtract = nodesString.split(',')
+    else:
+        getHierarchyRoots(blocks18)
 
     log.info(blocksToExtract)
 
     mat_to_idx = {mat['name']:idx for idx, mat in enumerate(materials_list['mat_names'])}
     idx_to_mat = {idx:mat['name'] for idx, mat in enumerate(materials_list['mat_names'])}
 
-    # log.info(materials)
-    # log.info(rootObjects)
-    # log.info(blocks18)
-    # log.info(used_texnums)
-    # log.info(texnum_positions)
-
-    # print([cn for cn in rootTexnums if len(cn) > 0])
 
     extract_buffer = None
     with open(b3dFilename, 'rb') as file:
@@ -353,7 +340,6 @@ def b3dsplit(b3dFilename, resFilename, rootsFile):
         current_texnums = set()
         for obj in root_objs:
             if rootTexnums[obj] is not None and len(rootTexnums[obj]) > 0:
-                # log.debug(len(rootTexnums[obj]))
                 current_texnums = current_texnums | rootTexnums[obj]
 
         #replace with new texture indexes in b3d file
@@ -371,12 +357,6 @@ def b3dsplit(b3dFilename, resFilename, rootsFile):
                     current_buffer.write(struct.pack("<I", new_texnum))
                     
 
-        log.info(extBlock)
-
-        # print()
- 
-        # log.info(texnum_list)
-        # log.info([idx_to_mat[idx] for idx in texnum_list])
 
         outfilename = os.path.join(outdir, '{}.b3d'.format(extBlock))
 

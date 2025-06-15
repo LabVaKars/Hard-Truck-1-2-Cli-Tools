@@ -1,32 +1,17 @@
 import struct
 
 
-
 def read_cstring(stream):
-    try:
-        chrs = []
-        i = 0
-        chrs.append(stream.read(1).decode("utf-8"))
-        while ord(chrs[i]) != 0:
-            chrs.append(stream.read(1).decode("utf-8"))
-            i += 1
-        return "".join(chrs[:-1])
-    except TypeError as e:
-        # log.warning("Error in read_cstring. Nothing to read")
-        return ""
-
-
-def read_null_terminated_ascii(stream):
     chars = []
     while True:
         c = stream.read(1)
         if c == b'\x00' or c == b'':
             break
         chars.append(c)
-    return b''.join(chars).decode('ascii')
+    return b''.join(chars).decode('utf-8')
 
 def read_file_entry(stream):
-    item_value = read_null_terminated_ascii(stream)
+    item_value = read_cstring(stream)
     len_data, = struct.unpack('<I', stream.read(4))
     data = stream.read(len_data)
     return {
@@ -35,50 +20,151 @@ def read_file_entry(stream):
         'data': data
     }
 
+def read_file_entry_metadata(stream):
+    full_name = read_cstring(stream)
+    only_name = full_name.split(' ')[0]
+    len_data, = struct.unpack('<I', stream.read(4))
+    stream.seek(len_data, 1)
+    return {
+        'name': only_name,
+        'len_data': len_data
+    }
+
+def parse_sounds(stream, num_items):
+    sounds = {}
+    for i in range(num_items):
+        soundString = read_cstring(stream)
+        soundArr = soundString.split(' ')
+        soundName = soundArr[0]
+        soundIndex = soundArr[1]
+        # print("{} {}".format(soundName, soundIndex))
+        sounds[soundName] = int(soundIndex)
+    return sounds
+
+def parse_materials(stream, num_items):
+    materials = {}
+    for j in range(num_items):
+        matString = read_cstring(stream)
+        matArr = matString.split(' ')
+        matName = matArr[0]
+        matParams = matArr[1:]
+        curMat = {
+            "raw_string": matString
+        }
+        i = 0
+        while i < len(matParams):
+            paramName = matParams[i].replace('"', '')
+            if len(paramName) > 0:
+                if paramName in ["tex", "ttx", "itx", "col", "att", "msk", "power", "coord"]:
+                    curMat[paramName] = int(matParams[i+1])
+                    i+=1
+                elif paramName in ["reflect", "specular", "transp", "rot"]:
+                    curMat[paramName] = float(matParams[i+1])
+                    i+=1
+                elif paramName in ["noz", "nof", "notile", "notileu", "notilev", \
+                                "alphamirr", "bumpcoord", "usecol", "wave"]:
+                    curMat[paramName] = True
+                elif paramName in ["RotPoint", "move"]:
+                    curMat[paramName] = [float(matParams[i+1]), float(matParams[i+2])]
+                    i+=2
+            elif paramName[0:3] == "env":
+                envid = paramName[3:]
+                if len(envid) > 0:
+                    curMat["envid"] = int(envid)
+                else:
+                    curMat["env"] = [float(matParams[i+1]), float(matParams[i+2])]
+                    i+=2
+            i+=1
+        materials[matName] = curMat
+    
+    return materials
 
 
-def read_res_sections(stream):
-    sections = []
-    k = 0
-    while 1:
-        category = read_cstring(stream)
-        if(len(category) > 0):
-            res_split = category.split(" ")
-            cat_id = res_split[0]
-            cnt = int(res_split[1])
-
-            sections.append({})
-
-            sections[k]["name"] = cat_id
-            sections[k]["cnt"] = cnt
-            sections[k]["data"] = []
-
-            # log.info("Reading category {}".format(cat_id))
-            # log.info("Element count in category is {}.".format(cnt))
-            if cnt > 0:
-                # log.info("Start processing...")
-                res_data = []
-                if cat_id in ["COLORS", "MATERIALS", "SOUNDS"]: # save only .txt
-                    for i in range(cnt):
-                        data = {}
-                        data['row'] = read_cstring(stream)
-                        res_data.append(data)
-
-                else: #PALETTEFILES, SOUNDFILES, BACKFILES, MASKFILES, TEXTUREFILES
-                    for i in range(cnt):
-
-                        data = {}
-                        data['row'] = read_cstring(stream)
-                        data['size'] = struct.unpack("<i",stream.read(4))[0]
-                        data['bytes'] = stream.read(data['size'])
-                        res_data.append(data)
-
-                sections[k]['data'] = res_data
-
-            else:
-                pass
-                # log.info("Skip category")
-            k += 1
+def read_section(stream):
+    section = read_cstring(stream)
+    if(len(section) > 0):
+        section_split = section.split(" ")
+        section_name = section_split[0]
+        num_items = int(section_split[1])
+        data = {}
+        start_pos = stream.tell()
+        if section_name == u"MASKFILES":
+            data = read_file_metadata(stream, num_items)
+        elif section_name == u"SOUNDS":
+            data = read_string_metadata(stream, num_items)
+        elif section_name == u"TEXTUREFILES":
+            data = read_file_metadata(stream, num_items)
+        elif section_name == u"SOUNDFILES":
+            data = read_file_metadata(stream, num_items)
+        elif section_name == u"COLORS":
+            data = read_string(stream, num_items)
+        elif section_name == u"MATERIALS":
+            data = read_string_metadata(stream, num_items)
+        elif section_name == u"BACKFILES":
+            data = read_file_metadata(stream, num_items)
+        elif section_name == u"PALETTEFILES":
+            data = read_file_metadata(stream, num_items)
         else:
-            break
-    return sections
+            return False
+        size = stream.tell() - start_pos
+        return {
+            'name': section_name,
+            'start': start_pos,
+            'size': size,
+            'cnt': num_items,
+            'metadata_order': data['data_order'],
+            'metadata': data['data']
+        }
+
+
+def read_file_metadata(stream, num_items): #for most of *FILES
+    data = {}
+    # start_pos = None
+    # end_pos = None
+    data_order = []
+    for i in range(num_items):
+        start_pos = stream.tell()
+        metadata_entry = read_file_entry_metadata(stream)
+        end_pos = stream.tell()
+        
+        data_order.append(metadata_entry['name'])
+        data[metadata_entry['name']] = {
+            "start" : start_pos,
+            "size" : end_pos - start_pos
+        }
+
+    return {
+        "data_order": data_order,
+        "data": data
+    }
+
+
+def read_string_metadata(stream, num_items): #for SOUNDS and MATERIALS
+    data = {}
+    data_order = []
+    for i in range(num_items):
+        start_pos = stream.tell()
+        metadata_entry = read_cstring(stream)
+        record_name = metadata_entry.split(' ')[0]
+        end_pos = stream.tell()
+        
+        data[record_name] = {
+            "start" : start_pos,
+            "size" : end_pos - start_pos
+        }
+    
+    return {
+        "data_order": [],
+        "data": data
+    }
+
+def read_string(stream, num_items): #for COLORS as they aren't named     
+    data = []
+    for i in range(num_items):
+        metadata_entry = read_cstring(stream)
+        data.append(metadata_entry)
+    
+    return {
+        "data_order": [],
+        "data": data
+    }
