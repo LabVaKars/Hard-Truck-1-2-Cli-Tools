@@ -65,53 +65,23 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
         mat_stream.seek(0,0)
         mat_stream.write(read_from_stream.read(mat_section['size']))
 
-    #Parsing only referenced in res file resources 
-    if section_records['SOUNDFILES'] == 'REF': #extract only objects referenced in this res-file
-        sounds_stream.seek(0,0)
-        sounds = res.parse_sounds(sounds_stream, sounds_section['cnt'])
-        sf_indexes = [int(ind)-1 for ind in sounds.values()]
-        
-        sf_names = sf_section['metadata_order']
-        used_names = [sf_names[i] for i in sf_indexes]
-        section_records['SOUNDFILES'] = used_names
-
-
-    if section_records['TEXTUREFILES'] == 'REF':
-        mat_stream.seek(0,0)
-        materials = res.parse_materials(mat_stream, mat_section['cnt'])
-        tex_indexes = set((int(mat.get('tex'))-1 for mat in materials.values() if mat.get("tex") is not None)) \
-                    | set((int(mat.get('ttx'))-1 for mat in materials.values() if mat.get("ttx") is not None)) \
-                    | set((int(mat.get('itx'))-1 for mat in materials.values() if mat.get("itx") is not None))
-        tex_names = tex_section['metadata_order']
-        used_names = [tex_names[i] for i in tex_indexes]
-        section_records['TEXTUREFILES'] = used_names
-    
-
-    if section_records['MASKFILES'] == 'REF':
-        mat_stream.seek(0,0)
-        materials = res.parse_materials(mat_stream, mat_section['cnt'])
-        msk_indexes = set((int(mat.get("msk"))-1 for mat in materials.values() if mat.get("msk")))
-        msk_names = msk_section['metadata_order']
-        used_names = [msk_names[i] for i in msk_indexes]
-        section_records['MASKFILES'] = used_names
-        
     # then processing
     processing_order = ["PALETTEFILES", "TEXTUREFILES", "MASKFILES", "BACKFILES", "MATERIALS", "SOUNDFILES", "SOUNDS"]
 
     matching_records = {
+        "PALETTEFILES": None,
+        "MATERIALS": None,
+        "SOUNDS": None,
         "TEXTUREFILES": None,
         "MASKFILES": None,
         "SOUNDFILES": None
     }
 
+    # filter mathing records based on wildcards
     for section_name in processing_order:
         section = sections.get(section_name)
 
         if(section is not None and section['name'] in selected_sections):
-            log.debug('{}: {}'.format(section['name'], section['cnt']))
-            sectionBuffer = BytesIO()
-            sectionDataBuffer = BytesIO()
-            
             #extract separate records
             if(section_records[section['name']]): 
                 cnt = 0
@@ -122,26 +92,81 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
                         for pattern in section_records[section['name']]) #user defined wildcards or just names
                 ]
 
-                if section['name'] in ["TEXTUREFILES", "MASKFILES", "SOUNDFILES"]:
+                if section['name'] in ["MATERIALS", "SOUNDS", "TEXTUREFILES", "MASKFILES", "SOUNDFILES"]:
                     matching_records[section['name']] = matching_names #for replacing indexes in MATERIALS and SOUNDS
 
-                for record_name in matching_names:
-                    cnt+=1
-                    metadata = section['metadata'].get(record_name)
-                    read_from_stream.seek(metadata['start'], 0)
-                    sectionDataBuffer.write(read_from_stream.read(metadata['size']))
-                
-                write_cstring(sectionBuffer, '{} {}'.format(section['name'], cnt))
-                sectionBuffer.write(sectionDataBuffer.getvalue())
+
+    #Parsing only referenced in res file resources 
+    if section_records['SOUNDFILES'] == 'REF': #extract only objects referenced in this res-file
+        sounds_stream.seek(0,0)
+        sounds = res.parse_sounds(sounds_stream, sounds_section['cnt'])
+        if (matching_records["SOUNDS"] is not None and len(matching_records["SOUNDS"]) > 0): 
+            sounds = {mat_name:sounds[mat_name] for mat_name in matching_records["SOUNDS"]}
+        sf_indexes = [int(ind)-1 for ind in sounds.values()]
+        
+        sf_names = sf_section['metadata_order']
+        used_names = [sf_names[i] for i in sf_indexes]
+        matching_records['SOUNDFILES'] = used_names
+
+
+    if section_records['TEXTUREFILES'] == 'REF':
+        mat_stream.seek(0,0)
+        materials = res.parse_materials(mat_stream, mat_section['cnt'])
+        if (matching_records["MATERIALS"] is not None and len(matching_records["MATERIALS"]) > 0): 
+            materials = {mat_name:materials[mat_name] for mat_name in matching_records["MATERIALS"]}
+        tex_indexes = set((int(mat.get('tex'))-1 for mat in materials.values() if mat.get("tex") is not None)) \
+                    | set((int(mat.get('ttx'))-1 for mat in materials.values() if mat.get("ttx") is not None)) \
+                    | set((int(mat.get('itx'))-1 for mat in materials.values() if mat.get("itx") is not None))
+        tex_names = tex_section['metadata_order']
+        used_names = [tex_names[i] for i in tex_indexes]
+        matching_records['TEXTUREFILES'] = used_names
+    
+
+    if section_records['MASKFILES'] == 'REF':
+        mat_stream.seek(0,0)
+        materials = res.parse_materials(mat_stream, mat_section['cnt'])
+        if (matching_records["MATERIALS"] is not None and len(matching_records["MATERIALS"]) > 0): 
+            materials = {mat_name:materials[mat_name] for mat_name in matching_records["MATERIALS"]}
+        msk_indexes = set((int(mat.get("msk"))-1 for mat in materials.values() if mat.get("msk")))
+        msk_names = msk_section['metadata_order']
+        used_names = [msk_names[i] for i in msk_indexes]
+        matching_records['MASKFILES'] = used_names
+
+    # Processing sections data
+    for section_name in processing_order:
+        section = sections.get(section_name)
+
+        if(section is not None and section['name'] in selected_sections):
+            log.debug('{}: {}'.format(section['name'], section['cnt']))
+            sectionBuffer = BytesIO()
+            sectionDataBuffer = BytesIO()
+            
+            #extract separate records
+
+            if section['name'] not in ["SOUNDS", "MATERIALS"]: #sections with replaceable indexes are processed lower
+                if(matching_records[section['name']]): 
+                    cnt = 0
+                    matching_names = matching_records[section['name']]
+                    for record_name in matching_names:
+                        cnt+=1
+                        metadata = section['metadata'].get(record_name)
+                        read_from_stream.seek(metadata['start'], 0)
+                        sectionDataBuffer.write(read_from_stream.read(metadata['size']))
+
+                    write_cstring(sectionBuffer, '{} {}'.format(section['name'], cnt))
+                    sectionBuffer.write(sectionDataBuffer.getvalue())
             
             elif section['name'] in ["MATERIALS"] \
-            and (section_records['TEXTUREFILES'] is not None \
-            or section_records['MASKFILES'] is not None):
-                ignore_tex = section_records['TEXTUREFILES'] is None
-                ignore_msk = section_records['MASKFILES'] is None
+            and (matching_records['TEXTUREFILES'] is not None \
+            or matching_records['MASKFILES'] is not None):
+                ignore_tex = matching_records['TEXTUREFILES'] is None
+                ignore_msk = matching_records['MASKFILES'] is None
 
                 mat_stream.seek(0,0)
                 new_materials = res.parse_materials(mat_stream, mat_section['cnt'])
+
+                if (matching_records["MATERIALS"] is not None and len(matching_records["MATERIALS"]) > 0): 
+                    new_materials = {mat_name:new_materials[mat_name] for mat_name in matching_records["MATERIALS"]}
                 
                 if(not ignore_tex):
                     og_tex_indexes = {f:i for i, f in enumerate(tex_section['metadata_order'])}
@@ -188,7 +213,7 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
                 sectionBuffer.write(sectionDataBuffer.getvalue())
                 
             elif section['name'] in ["SOUNDS"] \
-            and (section_records['SOUNDFILES'] is not None):
+            and (matching_records['SOUNDFILES'] is not None):
                 sounds_stream.seek(0,0)
                 new_sounds = res.parse_sounds(sounds_stream, sounds_section['cnt'])
 
