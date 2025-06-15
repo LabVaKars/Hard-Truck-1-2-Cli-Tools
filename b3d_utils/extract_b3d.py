@@ -107,12 +107,24 @@ def get_name(obj):
 EMPTY_NAME = '~'
 
 
-def b3dextract(b3dFilename, resFilename, outdir, nodesString):
+def b3dextract(b3dFilename, resFilename, outpath, nodesString, toSplit, toUseNodeRefs):
 
-    if not outdir:
-        outdir = os.path.dirname(b3dFilename)
+    basename, ext = os.path.splitext(b3dFilename)
+    outname = None
+    if not toSplit:
+        if not outpath:
+            outpath_full = '{}_extract.{}'.format(basename, ext[1:])
+            outname =  os.path.basename(os.path.splitext(outpath_full)[0])
+            outpath = os.path.dirname(outpath_full)
+        else:
+            outname = os.path.basename(os.path.splitext(outpath)[0])
+            outpath = os.path.dirname(outpath)
+
+    else:
+        if not outpath:
+            outpath = os.path.dirname(b3dFilename)
+    
     nodesFromCli = False
-
     if nodesString:
         nodesFromCli = True
     if not resFilename:
@@ -296,48 +308,77 @@ def b3dextract(b3dFilename, resFilename, outdir, nodesString):
     if nodesFromCli:
         blocksToExtract = nodesString.split(',')
     else:
-        getHierarchyRoots(blocks18)
+        blocksToExtract = getHierarchyRoots(blocks18)
 
-    log.info(blocksToExtract)
+    # log.info(blocksToExtract)
 
     mat_to_idx = {mat['name']:idx for idx, mat in enumerate(materials_list['mat_names'])}
     idx_to_mat = {idx:mat['name'] for idx, mat in enumerate(materials_list['mat_names'])}
 
-
-    extract_buffer = None
+    read_from_buffer = None
     with open(b3dFilename, 'rb') as file:
-        extract_buffer = io.BytesIO(file.read())
+        read_from_buffer = io.BytesIO(file.read())
 
-    for extBlock in blocksToExtract:
+    outFileData = {}
 
-        current_buffer = io.BytesIO(extract_buffer.getvalue())
+    # search for referenced blocks
+    if (toUseNodeRefs):
+        for extBlock in blocksToExtract:
 
-        buffer = io.BytesIO()
-        g_spaces = set()
-        g_root_objs = set()
-        g_root_objs.add(extBlock)
-        curLevel = [extBlock]
-        # curLevel.append(extBlock)
-        root_objs = set()
-        while len(curLevel) > 0:
-            for add in curLevel:
-                for block in blocks18[add]:
-                    g_spaces.add(block['space_name'])
-                    g_root_objs.add(block['add_name'])
-                    root_objs.add(block['add_name'])
-            curLevel = list(root_objs)
+            g_spaces = set()
+            g_root_objs = set()
+            g_root_objs.add(extBlock)
+            curLevel = [extBlock]
+            # curLevel.append(extBlock)
             root_objs = set()
+            while len(curLevel) > 0:
+                for add in curLevel:
+                    for block in blocks18[add]:
+                        g_spaces.add(block['space_name'])
+                        g_root_objs.add(block['add_name'])
+                        root_objs.add(block['add_name'])
+                curLevel = list(root_objs)
+                root_objs = set()
 
-        spaces = [cn for cn in list(g_spaces) if cn != EMPTY_NAME]
+            spaces = [cn for cn in list(g_spaces) if cn != EMPTY_NAME]
 
-        root_objs = list(g_root_objs)
+            root_objs = list(g_root_objs)
 
-        spaces.sort()
-        root_objs.sort(reverse=True)
+            spaces.sort()
+            root_objs.sort(reverse=True)
+        
+            outFileData[extBlock] = {
+                "nodes": root_objs,
+                "spaces": spaces
+            }
+        
+    else:
+        spaces = []
+        for extBlock in blocksToExtract:
+            outFileData[extBlock] = {
+                "nodes": [extBlock],
+                "spaces": []
+            }
 
+    current_buffer = io.BytesIO(read_from_buffer.getvalue())
 
-        # analyze materials
+    #Replacing texnum in separate buffer
+    if(not toSplit):
+        root_objs = set()
+        for extFilename, entry in outFileData.items():
+            root_objs.update(entry["nodes"])
+        root_objs = list(root_objs)
+        outFileData = {}
+        outFileData[outname] = {
+            "nodes": root_objs,
+            "spaces": []
+        }
+
+    for extFilename, entry in outFileData.items():
+        current_buffer = io.BytesIO(read_from_buffer.getvalue())
+
         current_texnums = set()
+        root_objs = entry["nodes"]
         for obj in root_objs:
             if rootTexnums[obj] is not None and len(rootTexnums[obj]) > 0:
                 current_texnums = current_texnums | rootTexnums[obj]
@@ -347,6 +388,8 @@ def b3dextract(b3dFilename, resFilename, outdir, nodesString):
         used_materials = sorted([idx_to_mat[idx] for idx in texnum_list])
         new_mat_idx_to_idx = {mat_to_idx[mat]:idx for idx, mat in enumerate(used_materials)}
 
+
+        # replace texnum indexes
         for obj in root_objs:
             if rootTexnumsPos[obj] is not None and len(rootTexnums[obj]) > 0:
                 for pos in rootTexnumsPos[obj]:
@@ -355,18 +398,19 @@ def b3dextract(b3dFilename, resFilename, outdir, nodesString):
                     new_texnum = new_mat_idx_to_idx[texnum]
                     current_buffer.seek(-4, 1)
                     current_buffer.write(struct.pack("<I", new_texnum))
-                    
+
+        outfilename = os.path.join(outpath, '{}.b3d'.format(extFilename))
+        write_split_b3d(outfilename, current_buffer, used_materials, rootObjects, spaces, root_objs)
 
 
-        outfilename = os.path.join(outdir, '{}.b3d'.format(extBlock))
-
-        write_split_b3d(outfilename, buffer, current_buffer, used_materials, rootObjects, spaces, root_objs)
 
     tt1 = time.mktime(datetime.datetime.now().timetuple()) - tt1
 
     log.info('Completed in {} seconds'.format(tt1))
 
-def write_split_b3d(filename, buffer, extract_buffer, materials_list, rootObjects, spaces, objs):
+def write_split_b3d(filename, read_from_buffer, materials_list, rootObjects, spaces, objs):
+    
+    buffer = io.BytesIO()
     buffer.write(b'b3d\x00')
     ms_file_size = reserve_size_byte(buffer)
     ms_materials = reserve_size_byte(buffer)
@@ -385,15 +429,15 @@ def write_split_b3d(filename, buffer, extract_buffer, materials_list, rootObject
     buffer.write(b'\x4D\x01\x00\x00') #BeginChunks
     for space in spaces:
         rootObj = rootObjects[space]
-        extract_buffer.seek(rootObj['start'], 0)
-        temp = extract_buffer.read(rootObj['size'])
+        read_from_buffer.seek(rootObj['start'], 0)
+        temp = read_from_buffer.read(rootObj['size'])
 
         buffer.write(temp)
 
     for obj in objs:
         rootObj = rootObjects[obj]
-        extract_buffer.seek(rootObj['start'], 0)
-        temp = extract_buffer.read(rootObj['size'])
+        read_from_buffer.seek(rootObj['start'], 0)
+        temp = read_from_buffer.read(rootObj['size'])
 
         buffer.write(temp)
 

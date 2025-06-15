@@ -66,9 +66,9 @@ subparser = b3d_parser.add_subparsers(dest="command", help="Commands to work wit
 # extract - parses b3d. Find root elements in structure(by finding nodes, that aren't referenced(18)) or uses root name file instead(--roots) 
 extract_parser = subparser.add_parser("extract", help="Extract selected b3d nodes with all references into separate files")
 extract_parser.add_argument('--i', help="Path to b3d file", required=True)
-extract_parser.add_argument('--nodes', type = parse_items, help="List of node names divided by comma. Accepts comma-separated string or path to file with comma-separated string. File path should start with @. For example: @test.txt")
-# extract_parser.add_argument('--split', action='store_true', help="Default. Export each node to separate file with node name. If not set export all nodes to single file")
-# extract_parser.add_argument('--ref', action='store_true', help="Default. Export with all references. If not set ignore node references")
+extract_parser.add_argument('--inc-nodes', type = parse_items, help="List of node names divided by comma. Accepts comma-separated string or path to file with comma-separated string. File path should start with @. For example: @test.txt")
+extract_parser.add_argument('--node-refs', action='store_true', help="Export with all references. If not set ignore node references")
+extract_parser.add_argument('--split', action='store_true', help="Export each node to separate file with node name. If not set export all nodes to single file")
 # extract_parser.add_argument('--ref-materials', action='store_true', help="Save only materials used in this .b3d")
 extract_parser.add_argument('--o', help="Path to output folder/file. Default is b3d file folder.")
 extract_parser.add_argument('--res', help="Path to res file. Default name same as for b3d file")
@@ -84,13 +84,17 @@ remove_parser.add_argument('--i', help="Path to b3d file", required=True)
 # merge
 
 args = parser.parse_args()
+print(args)
 if args.format == 'b3d':
     if args.command == 'extract':
-        extract_b3d.b3dextract(args.i, args.res, args.o, args.roots)
+        extract_b3d.b3dextract(args.i, args.res, args.o, args.inc_nodes, args.split, args.node_refs)
 
     elif args.command == 'list':
         list_b3d.b3dlist(args.i)
         
+    elif args.command == 'merge':
+        pass
+
     elif args.command == 'remove':
         pass
 
@@ -117,6 +121,9 @@ elif args.format == 'res':
     elif args.command == 'list':
 
         list_res.reslist(args.i)
-
+    
+    elif args.command == 'merge':
+        pass
+    
     elif args.command == 'remove':
         pass
