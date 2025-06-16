@@ -47,3 +47,35 @@ def getHierarchyRoots(refObjs):
 
     return roots
 
+SECTIONS = ["PALETTEFILES", "SOUNDFILES", "BACKFILES", "MASKFILES", "TEXTUREFILES", "COLORS", "MATERIALS", "SOUNDS"]
+
+def get_res_params(
+    sections, 
+    inc_soundfiles, ref_soundfiles, 
+    inc_backfiles,
+    inc_maskfiles, ref_maskfiles, 
+    inc_texturefiles, ref_texturefiles, 
+    inc_materials,
+    inc_sounds
+):
+    current_sections = None
+    if(sections):
+        current_sections = sections
+    else:
+        current_sections = SECTIONS
+
+    section_records = {
+        "SOUNDFILES": "REF" if ref_soundfiles else inc_soundfiles,
+        "BACKFILES": inc_backfiles,
+        "MASKFILES": "REF" if ref_maskfiles else inc_maskfiles,
+        "TEXTUREFILES": "REF" if ref_texturefiles else inc_texturefiles,
+        "MATERIALS": inc_materials,
+        "SOUNDS": inc_sounds,
+        "PALETTEFILES": None
+    }
+
+    return {
+        "current_sections": current_sections,
+        "section_records": section_records
+    }
+

@@ -8,6 +8,8 @@ import list_b3d
 import extract_res
 import list_res
 
+import common
+
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger("b3d_cli")
 log.setLevel(logging.DEBUG)
@@ -25,7 +27,7 @@ def parse_items(value):
         items = value.strip().split(',')
     return items
 
-sections = ["PALETTEFILES", "SOUNDFILES", "BACKFILES", "MASKFILES", "TEXTUREFILES", "COLORS", "MATERIALS", "SOUNDS"]
+SECTIONS = ["PALETTEFILES", "SOUNDFILES", "BACKFILES", "MASKFILES", "TEXTUREFILES", "COLORS", "MATERIALS", "SOUNDS"]
 
 parser = argparse.ArgumentParser(description="Say hello")
 
@@ -38,8 +40,7 @@ subparser = res_parser.add_subparsers(dest="command", help="Commands to work wit
 # extract - parses res. Exports selected res sections and/or selected records in separate .res file. 
 extract_parser = subparser.add_parser("extract", help="Extracts selected res sections and/or selected records in separate .res file")
 extract_parser.add_argument('--i', help="Path to res file", required=True)
-extract_parser.add_argument('--incl', help="List of sections to include. All included by default", nargs="+", choices=sections)
-extract_parser.add_argument('--excl', help="List of sections to exclude. All included by default", nargs="+", choices=sections)
+extract_parser.add_argument('--sections', help="List of sections to include. All included by default", nargs="+", choices=SECTIONS)
 extract_parser.add_argument('--o', help="Path to output file. {name}_extract.res by default")
 
 # namelist_subparser = extract_parser.add_subparsers(dest="include_lists", help="Lists of names to include in extract")
@@ -69,9 +70,21 @@ extract_parser.add_argument('--i', help="Path to b3d file", required=True)
 extract_parser.add_argument('--inc-nodes', type = parse_items, help="List of node names divided by comma. Accepts comma-separated string or path to file with comma-separated string. File path should start with @. For example: @test.txt")
 extract_parser.add_argument('--node-refs', action='store_true', help="Export with all references. If not set ignore node references")
 extract_parser.add_argument('--split', action='store_true', help="Export each node to separate file with node name. If not set export all nodes to single file")
-# extract_parser.add_argument('--ref-materials', action='store_true', help="Save only materials used in this .b3d")
 extract_parser.add_argument('--o', help="Path to output folder/file. Default is b3d file folder.")
-extract_parser.add_argument('--res', help="Path to res file. Default name same as for b3d file")
+extract_parser.add_argument('--res', help="Path to res file. If is set, exports associated res file(s) with defined parameters.")
+extract_parser.add_argument('--ref-materials', action='store_true', help="Save only materials used in this .b3d")
+
+# Settings for connected res file
+extract_parser.add_argument('--sections', help="List of res sections to include. All included by default", nargs="+", choices=SECTIONS)
+extract_parser.add_argument('--inc-soundfiles', type = parse_items, help="Soundfile full name in res. Example: snd\\alarm.wav")
+extract_parser.add_argument('--ref-soundfiles', action='store_true', help="Extract only soundfiles referenced within this resource file. --inc-soundfiles is ignored if this flag is set")
+extract_parser.add_argument('--inc-backfiles', type = parse_items, help="Backfile full name in res. Example: txr\\sky.txr")
+extract_parser.add_argument('--inc-maskfiles', type = parse_items, help="Maskfile full name in res. Example: txr\\rain.txr")
+extract_parser.add_argument('--ref-maskfiles', action='store_true', help="Extract only texturefiles referenced within this resource file. --inc-maskfiles is ignored if this flag is set")
+extract_parser.add_argument('--inc-texturefiles', type = parse_items, help="Texturefile full name in res. Example: txr\\tree.txr")
+extract_parser.add_argument('--ref-texturefiles', action='store_true', help="Extract only texturefiles referenced within this resource file. --inc-texturefiles is ignored if this flag is set")
+extract_parser.add_argument('--inc-materials', type = parse_items, help="Material name in res")
+extract_parser.add_argument('--inc-sounds', type = parse_items, help="Sound name in res")
 
 #list - parses b3d. List all nodes
 list_parser = subparser.add_parser("list", help="List b3d file")
@@ -87,7 +100,18 @@ args = parser.parse_args()
 print(args)
 if args.format == 'b3d':
     if args.command == 'extract':
-        extract_b3d.b3dextract(args.i, args.res, args.o, args.inc_nodes, args.split, args.node_refs)
+
+        res_params = common.get_res_params(
+            args.sections, 
+            args.inc_soundfiles, args.ref_soundfiles,
+            args.inc_backfiles, 
+            args.inc_maskfiles, args.ref_maskfiles,
+            args.inc_texturefiles, args.ref_texturefiles,
+            args.inc_materials,
+            args.inc_sounds
+        )
+
+        extract_b3d.b3dextract(args.i, args.res, args.o, args.inc_nodes, args.split, args.node_refs, args.ref_materials, res_params["current_sections"], res_params["section_records"])
 
     elif args.command == 'list':
         list_b3d.b3dlist(args.i)
@@ -101,22 +125,18 @@ if args.format == 'b3d':
 elif args.format == 'res':
     
     if args.command == 'extract':
-        current_sections = None
-        if(args.excl):
-            current_sections = list(set(sections) - set(args.excl))
-        elif(args.incl):
-            current_sections = args.incl
 
-        section_records = {
-            "SOUNDFILES": "REF" if args.ref_soundfiles else args.inc_soundfiles,
-            "BACKFILES": args.inc_backfiles,
-            "MASKFILES": "REF" if args.ref_maskfiles else args.inc_maskfiles,
-            "TEXTUREFILES": "REF" if args.ref_texturefiles else args.inc_texturefiles,
-            "MATERIALS": args.inc_materials,
-            "SOUNDS": args.inc_sounds,
-            "PALETTEFILES": None
-        }
-        extract_res.resextract(args.i, args.o, current_sections, section_records)
+        res_params = common.get_res_params(
+            args.sections, 
+            args.inc_soundfiles, args.ref_soundfiles,
+            args.inc_backfiles, 
+            args.inc_maskfiles, args.ref_maskfiles,
+            args.inc_texturefiles, args.ref_texturefiles,
+            args.inc_materials,
+            args.inc_sounds
+        )
+
+        extract_res.resextract(args.i, args.o, res_params["current_sections"], res_params["section_records"])
 
     elif args.command == 'list':
 

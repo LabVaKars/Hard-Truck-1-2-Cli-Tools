@@ -70,6 +70,7 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
 
     matching_records = {
         "PALETTEFILES": None,
+        "BACKFILES": None,
         "MATERIALS": None,
         "SOUNDS": None,
         "TEXTUREFILES": None,
@@ -107,30 +108,33 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
         sf_names = sf_section['metadata_order']
         used_names = [sf_names[i] for i in sf_indexes]
         matching_records['SOUNDFILES'] = used_names
+    elif section_records['SOUNDFILES'] is None:
+        matching_records['SOUNDFILES'] = sf_section['metadata_order']
+
+    mat_stream.seek(0,0)
+    materials = res.parse_materials(mat_stream, mat_section['cnt'])
+    if (matching_records["MATERIALS"] is not None and len(matching_records["MATERIALS"]) > 0):
+        materials = {mat_name:materials[mat_name] for mat_name in matching_records["MATERIALS"]}
 
 
     if section_records['TEXTUREFILES'] == 'REF':
-        mat_stream.seek(0,0)
-        materials = res.parse_materials(mat_stream, mat_section['cnt'])
-        if (matching_records["MATERIALS"] is not None and len(matching_records["MATERIALS"]) > 0): 
-            materials = {mat_name:materials[mat_name] for mat_name in matching_records["MATERIALS"]}
         tex_indexes = set((int(mat.get('tex'))-1 for mat in materials.values() if mat.get("tex") is not None)) \
                     | set((int(mat.get('ttx'))-1 for mat in materials.values() if mat.get("ttx") is not None)) \
                     | set((int(mat.get('itx'))-1 for mat in materials.values() if mat.get("itx") is not None))
         tex_names = tex_section['metadata_order']
         used_names = [tex_names[i] for i in tex_indexes]
         matching_records['TEXTUREFILES'] = used_names
+    elif section_records['TEXTUREFILES'] is None:
+        matching_records['TEXTUREFILES'] = tex_section['metadata_order']
     
 
     if section_records['MASKFILES'] == 'REF':
-        mat_stream.seek(0,0)
-        materials = res.parse_materials(mat_stream, mat_section['cnt'])
-        if (matching_records["MATERIALS"] is not None and len(matching_records["MATERIALS"]) > 0): 
-            materials = {mat_name:materials[mat_name] for mat_name in matching_records["MATERIALS"]}
         msk_indexes = set((int(mat.get("msk"))-1 for mat in materials.values() if mat.get("msk")))
         msk_names = msk_section['metadata_order']
         used_names = [msk_names[i] for i in msk_indexes]
         matching_records['MASKFILES'] = used_names
+    elif section_records['MASKFILES'] is None:
+        matching_records['MASKFILES'] = msk_section['metadata_order']
 
     # Processing sections data
     for section_name in processing_order:
@@ -155,6 +159,9 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
 
                     write_cstring(sectionBuffer, '{} {}'.format(section['name'], cnt))
                     sectionBuffer.write(sectionDataBuffer.getvalue())
+                else:
+                    write_cstring(sectionBuffer, '{} {}'.format(section['name'], 0))
+
             
             elif section['name'] in ["MATERIALS"] \
             and (matching_records['TEXTUREFILES'] is not None \
@@ -211,6 +218,13 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
             
                 write_cstring(sectionBuffer, '{} {}'.format('MATERIALS', len(new_materials)))
                 sectionBuffer.write(sectionDataBuffer.getvalue())
+
+                if(matching_records['TEXTUREFILES'] is None):
+                    write_cstring(sectionBuffer, '{} {}'.format('TEXTUREFILES', 0))
+
+                if(matching_records['MASKFILES'] is None):
+                    write_cstring(sectionBuffer, '{} {}'.format('MASKFILES', 0))
+
                 
             elif section['name'] in ["SOUNDS"] \
             and (matching_records['SOUNDFILES'] is not None):

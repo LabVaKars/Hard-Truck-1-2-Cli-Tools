@@ -11,6 +11,9 @@ import parsing.read_b3d as b3dr
 import parsing.skip_b3d as b3ds 
 from io import BytesIO
 from io import SEEK_CUR
+
+import extract_res
+
 # Compiling HardTruck2B3d:
 # 1) kaitai-struct-compiler --outdir ./ --no-auto-read --target python ./ksy/hard_truck_2_b3d_parts.ksy
 # 2) replace '_pos = self._io.read_bytes(0)' with '_pos = self._io.pos()'
@@ -107,7 +110,7 @@ def get_name(obj):
 EMPTY_NAME = '~'
 
 
-def b3dextract(b3dFilename, resFilename, outpath, nodesString, toSplit, toUseNodeRefs):
+def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeRefs, ref_materials, selected_sections, section_records):
 
     basename, ext = os.path.splitext(b3dFilename)
     outname = None
@@ -125,10 +128,8 @@ def b3dextract(b3dFilename, resFilename, outpath, nodesString, toSplit, toUseNod
             outpath = os.path.dirname(b3dFilename)
     
     nodesFromCli = False
-    if nodesString:
+    if indlNodes and len(indlNodes) > 0:
         nodesFromCli = True
-    if not resFilename:
-        resFilename = b3dFilename[:-4] + '.res'
 
     #read roots from text file
     blocksToExtract = []
@@ -306,7 +307,7 @@ def b3dextract(b3dFilename, resFilename, outpath, nodesString, toSplit, toUseNod
     log.info('initial parsing b3d end')
 
     if nodesFromCli:
-        blocksToExtract = nodesString.split(',')
+        blocksToExtract = indlNodes
     else:
         blocksToExtract = getHierarchyRoots(blocks18)
 
@@ -395,12 +396,20 @@ def b3dextract(b3dFilename, resFilename, outpath, nodesString, toSplit, toUseNod
                 for pos in rootTexnumsPos[obj]:
                     current_buffer.seek(pos, 0)
                     texnum, = struct.unpack("<I", current_buffer.read(4))
-                    new_texnum = new_mat_idx_to_idx[texnum]
+                    new_texnum = new_mat_idx_to_idx[texnum] + 1 # Material indexes start counting from 1
                     current_buffer.seek(-4, 1)
                     current_buffer.write(struct.pack("<I", new_texnum))
 
         outfilename = os.path.join(outpath, '{}.b3d'.format(extFilename))
         write_split_b3d(outfilename, current_buffer, used_materials, rootObjects, spaces, root_objs)
+
+        if(resFilename):
+
+            if(ref_materials):   
+                section_records["MATERIALS"] = used_materials
+
+            outresfilename = os.path.join(outpath, '{}.res'.format(extFilename))
+            extract_res.resextract(resFilename, outresfilename, selected_sections, section_records)
 
 
 
