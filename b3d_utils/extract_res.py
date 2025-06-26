@@ -5,15 +5,12 @@ import fnmatch
 from io import BytesIO
 
 import parsing.read_res as res
+import common as c
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger("extract_res")
 log.setLevel(logging.DEBUG)
 
-def write_cstring(stream, txt):
-    if txt[-1] != "\00":
-        txt += "\00"
-    stream.write(txt.encode("utf8"))
 
 
 def resextract(resFilepath, outFilepath, selected_sections, section_records):
@@ -141,7 +138,7 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
         section = sections.get(section_name)
 
         if(section is not None and section['name'] in selected_sections):
-            log.debug('{}: {}'.format(section['name'], section['cnt']))
+            # log.debug('{}: {}'.format(section['name'], section['cnt']))
             sectionBuffer = BytesIO()
             sectionDataBuffer = BytesIO()
             
@@ -157,10 +154,10 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
                         read_from_stream.seek(metadata['start'], 0)
                         sectionDataBuffer.write(read_from_stream.read(metadata['size']))
 
-                    write_cstring(sectionBuffer, '{} {}'.format(section['name'], cnt))
+                    c.write_cstring(sectionBuffer, '{} {}'.format(section['name'], cnt))
                     sectionBuffer.write(sectionDataBuffer.getvalue())
                 else:
-                    write_cstring(sectionBuffer, '{} {}'.format(section['name'], 0))
+                    c.write_cstring(sectionBuffer, '{} {}'.format(section['name'], 0))
 
             
             elif section['name'] in ["MATERIALS"] \
@@ -214,16 +211,16 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
                     
                     newParamsStr = '{} {}'.format(mat_name, '  '.join(newMatParams))
                     
-                    write_cstring(sectionDataBuffer, newParamsStr)
+                    c.write_cstring(sectionDataBuffer, newParamsStr)
             
-                write_cstring(sectionBuffer, '{} {}'.format('MATERIALS', len(new_materials)))
+                c.write_cstring(sectionBuffer, '{} {}'.format('MATERIALS', len(new_materials)))
                 sectionBuffer.write(sectionDataBuffer.getvalue())
 
                 if(matching_records['TEXTUREFILES'] is None):
-                    write_cstring(sectionBuffer, '{} {}'.format('TEXTUREFILES', 0))
+                    c.write_cstring(sectionBuffer, '{} {}'.format('TEXTUREFILES', 0))
 
                 if(matching_records['MASKFILES'] is None):
-                    write_cstring(sectionBuffer, '{} {}'.format('MASKFILES', 0))
+                    c.write_cstring(sectionBuffer, '{} {}'.format('MASKFILES', 0))
 
                 
             elif section['name'] in ["SOUNDS"] \
@@ -238,23 +235,23 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
                 for sound_idx in new_sounds.values():
                     cnt+=1
                     newSoundsStr = '{} {}'.format(record_name, sf_index_mapping[sound_idx-1]+1)
-                    write_cstring(sectionDataBuffer, newSoundsStr)
+                    c.write_cstring(sectionDataBuffer, newSoundsStr)
                 
-                write_cstring(sectionBuffer, '{} {}'.format('SOUNDS', cnt))
+                c.write_cstring(sectionBuffer, '{} {}'.format('SOUNDS', cnt))
                 sectionBuffer.write(sectionDataBuffer.getvalue())
 
 
             else:
                 #extract whole section
                 sectionBuffer = BytesIO()
-                write_cstring(sectionBuffer, '{} {}'.format(section['name'], section['cnt']))
+                c.write_cstring(sectionBuffer, '{} {}'.format(section['name'], section['cnt']))
                 read_from_stream.seek(section['start'], 0)
                 sectionBuffer.write(read_from_stream.read(section['size']))
 
             outBuffer.write(sectionBuffer.getvalue())
         
         else:     
-            write_cstring(outBuffer, '{} {}'.format(section_name, 0))
+            c.write_cstring(outBuffer, '{} {}'.format(section_name, 0))
 
     with open(outFilepath, 'wb') as outFile:
         outFile.write(outBuffer.getvalue())

@@ -48,36 +48,39 @@ def parse_materials(stream, num_items):
         matArr = matString.split(' ')
         matName = matArr[0]
         matParams = matArr[1:]
-        curMat = {
-            "raw_string": matString
-        }
-        i = 0
-        while i < len(matParams):
-            paramName = matParams[i].replace('"', '')
-            if len(paramName) > 0:
-                if paramName in ["tex", "ttx", "itx", "col", "att", "msk", "power", "coord"]:
-                    curMat[paramName] = int(matParams[i+1])
-                    i+=1
-                elif paramName in ["reflect", "specular", "transp", "rot"]:
-                    curMat[paramName] = float(matParams[i+1])
-                    i+=1
-                elif paramName in ["noz", "nof", "notile", "notileu", "notilev", \
-                                "alphamirr", "bumpcoord", "usecol", "wave"]:
-                    curMat[paramName] = True
-                elif paramName in ["RotPoint", "move"]:
-                    curMat[paramName] = [float(matParams[i+1]), float(matParams[i+2])]
-                    i+=2
-            elif paramName[0:3] == "env":
-                envid = paramName[3:]
-                if len(envid) > 0:
-                    curMat["envid"] = int(envid)
-                else:
-                    curMat["env"] = [float(matParams[i+1]), float(matParams[i+2])]
-                    i+=2
-            i+=1
+        curMat = parse_material_params(matParams)
+        curMat["raw_string"] = matString
         materials[matName] = curMat
     
     return materials
+
+def parse_material_params(matParams):
+    i = 0
+    result = {}
+    while i < len(matParams):
+        paramName = matParams[i].replace('"', '')
+        if len(paramName) > 0:
+            if paramName in ["tex", "ttx", "itx", "col", "att", "msk", "power", "coord"]:
+                result[paramName] = int(matParams[i+1])
+                i+=1
+            elif paramName in ["reflect", "specular", "transp", "rot"]:
+                result[paramName] = float(matParams[i+1])
+                i+=1
+            elif paramName in ["noz", "nof", "notile", "notileu", "notilev", \
+                            "alphamirr", "bumpcoord", "usecol", "wave"]:
+                result[paramName] = True
+            elif paramName in ["RotPoint", "move"]:
+                result[paramName] = [float(matParams[i+1]), float(matParams[i+2])]
+                i+=2
+        elif paramName[0:3] == "env":
+            envid = paramName[3:]
+            if len(envid) > 0:
+                result["envid"] = int(envid)
+            else:
+                result["env"] = [float(matParams[i+1]), float(matParams[i+2])]
+                i+=2
+        i+=1
+    return result
 
 
 def read_section(stream):

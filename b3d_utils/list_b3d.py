@@ -11,7 +11,6 @@ import json
 import parsing.read_b3d as b3dr 
 import parsing.skip_b3d as b3ds 
 from parsing.read_b3d import ChunkType
-from common import getHierarchyRoots
 from io import BytesIO
 from io import SEEK_CUR
 

@@ -3,8 +3,10 @@ import sys
 import argparse
 import os
 
+import merge_b3d
 import extract_b3d
 import list_b3d
+import merge_res
 import extract_res
 import list_res
 
@@ -43,9 +45,7 @@ extract_parser.add_argument('--i', help="Path to res file", required=True)
 extract_parser.add_argument('--sections', help="List of sections to include. All included by default", nargs="+", choices=SECTIONS)
 extract_parser.add_argument('--o', help="Path to output file. {name}_extract.res by default")
 
-# namelist_subparser = extract_parser.add_subparsers(dest="include_lists", help="Lists of names to include in extract")
-# namelist_parser = namelist_subparser.add_parser("using", help="Extract selected resources into separate files. All arguments accepts list of names divided by comma. Also accepts comma-separated string or path to file with comma-separated string. File path should start with @. For example: @test.txt")
-
+# Res settings
 extract_parser.add_argument('--inc-soundfiles', type = parse_items, help="Soundfile full name in res. Example: snd\\alarm.wav")
 extract_parser.add_argument('--ref-soundfiles', action='store_true', help="Extract only soundfiles referenced within this resource file. --inc-soundfiles is ignored if this flag is set")
 extract_parser.add_argument('--inc-backfiles', type = parse_items, help="Backfile full name in res. Example: txr\\sky.txr")
@@ -59,6 +59,17 @@ extract_parser.add_argument('--inc-sounds', type = parse_items, help="Sound name
 #list - parses res. List all resources
 list_parser = subparser.add_parser("list", help="List res file")
 list_parser.add_argument('--i', help="Path to res file", required=True)
+
+#merge - merges two res-files into single one
+merge_parser = subparser.add_parser("merge", help="Merge selected res sections and/or selected records into .res file")
+merge_parser.add_argument('--i-from', help="Path to res file to merge from", required=True)
+merge_parser.add_argument('--i-to', help="Path to res file to merge into", required=True)
+merge_parser.add_argument('--replace', action='store_true', help="If is set replaces resources with same names. Ignores otherwise")
+merge_parser.add_argument('--o', help="Path to res file to save merge result. If not set merges into original file")
+
+
+
+
 
 #b3d utils
 b3d_parser = format_subparser.add_parser("b3d", help="Commands to work with .b3d files")
@@ -143,7 +154,8 @@ elif args.format == 'res':
         list_res.reslist(args.i)
     
     elif args.command == 'merge':
-        pass
+
+        merge_res.resmerge(args.i_from, args.i_to, args.o, args.replace)
     
     elif args.command == 'remove':
         pass

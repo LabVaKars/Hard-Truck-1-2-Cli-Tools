@@ -79,3 +79,8 @@ def get_res_params(
         "section_records": section_records
     }
 
+
+def write_cstring(stream, txt):
+    if txt[-1] != "\00":
+        txt += "\00"
+    stream.write(txt.encode("utf8"))
