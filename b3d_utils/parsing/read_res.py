@@ -100,23 +100,38 @@ def set_msk(matObj, value):
     idx = matObj["msk_idx"]
     if idx > -1:
         matObj['params'][idx] = value
+        
+def get_par(matObj):
+    idx = matObj["par_idx"]
+    if idx > -1:
+        return matObj['params'][idx]
+    else:
+        return -1
+
+def set_par(matObj, value):
+    idx = matObj["par_idx"]
+    if idx > -1:
+        matObj['params'][idx] = value
 
 def get_mat_string(matObj):
     tex_idx = matObj["tex_idx"]
     ttx_idx = matObj["ttx_idx"]
     itx_idx = matObj["itx_idx"]
     msk_idx = matObj["msk_idx"]
+    par_idx = matObj["par_idx"]
 
     params = list(matObj["params"]) #copy
 
     if(tex_idx > -1):
         params[tex_idx] = "{} {}".format("tex", params[tex_idx])
     if(ttx_idx > -1):
-        params[ttx_idx] = "{} {}".format("tex", params[ttx_idx])
+        params[ttx_idx] = "{} {}".format("ttx", params[ttx_idx])
     if(itx_idx > -1):
-        params[itx_idx] = "{} {}".format("tex", params[itx_idx])
+        params[itx_idx] = "{} {}".format("itx", params[itx_idx])
     if(msk_idx > -1):
-        params[msk_idx] = "{} {}".format("tex", params[msk_idx])
+        params[msk_idx] = "{} {}".format("msk", params[msk_idx])
+    if(par_idx > -1):
+        params[par_idx] = "{} {}".format("par", params[par_idx])
 
     return " ".join(params)
         
@@ -129,6 +144,7 @@ def parse_mat_string(matString):
         "ttx_idx": -1,
         "itx_idx": -1,
         "msk_idx": -1,
+        "par_idx": -1,
         "params": []
     }
 
@@ -140,7 +156,7 @@ def parse_mat_string(matString):
     while i < len(matParams):
         paramName = matParams[i].replace('"', '')
         if len(paramName) > 0:
-            if paramName in ["tex", "ttx", "itx", "msk"]:
+            if paramName in ["tex", "ttx", "itx", "msk", "par"]:
                 if len(other_params_buf) > 0:
                     result["params"].append(" ".join(other_params_buf))
                     other_params_buf = []
@@ -228,13 +244,14 @@ def read_string_metadata(stream, num_items): #for SOUNDS and MATERIALS
         record_name = metadata_entry.split(' ')[0]
         end_pos = stream.tell()
         
+        data_order.append(record_name)
         data[record_name] = {
             "start" : start_pos,
             "size" : end_pos - start_pos
         }
     
     return {
-        "data_order": [],
+        "data_order": data_order,
         "data": data
     }
 

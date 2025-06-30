@@ -111,6 +111,27 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
     mat_stream.seek(0,0)
     materials = res.parse_materials(mat_stream, mat_section['cnt'])
     if (matching_records["MATERIALS"] is not None and len(matching_records["MATERIALS"]) > 0):
+        new_matching_records = set(matching_records["MATERIALS"])
+        par_references = {}
+        mat_order = mat_section['metadata_order']
+        for mat_name, mat in materials.items():
+            par_idx = res.get_par(mat)
+            if par_idx > -1:
+                # print(mat_name)
+                if par_references.get(mat_name) is None:
+                    par_references[mat_name] = []
+                par_references[mat_name].append(mat_order[par_idx-1])
+        
+        stack = list(matching_records["MATERIALS"])
+        
+        while stack:
+            mat_name = stack.pop()
+            if par_references.get(mat_name) is not None:
+                stack = stack + par_references[mat_name]
+                new_matching_records |= set(par_references[mat_name])
+            
+        matching_records["MATERIALS"] = sorted(list(new_matching_records))
+            
         materials = {mat_name:materials[mat_name] for mat_name in matching_records["MATERIALS"]}
 
 
@@ -166,6 +187,10 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
                 ignore_tex = matching_records['TEXTUREFILES'] is None
                 ignore_msk = matching_records['MASKFILES'] is None
 
+                og_mat_indexes = {f:i for i, f in enumerate(mat_section['metadata_order'])}
+                new_mat_indexes = {f:(i+1) for i, f in enumerate(matching_records['MATERIALS'])}
+                mat_index_mapping = {og_mat_indexes[k]: new_mat_indexes[k] for k in og_mat_indexes if k in new_mat_indexes}            
+
                 if(not ignore_tex):
                     og_tex_indexes = {f:i for i, f in enumerate(tex_section['metadata_order'])}
                     new_tex_indexes = {f:(i+1) for i, f in enumerate(matching_records['TEXTUREFILES'])}
@@ -180,6 +205,9 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
                     cnt+=1
                     # mat = materials[mat_name]
 
+                    par = res.get_par(mat)
+                    if par > -1:
+                        res.set_par(mat, mat_index_mapping[par-1])
                     if not ignore_tex:
                         tex = res.get_tex(mat)
                         ttx = res.get_ttx(mat)

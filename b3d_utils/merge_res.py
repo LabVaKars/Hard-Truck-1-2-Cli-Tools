@@ -91,6 +91,7 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
     into_msk_cnt = into_sections['MASKFILES']['cnt'] if into_sections['MASKFILES'] is not None else 0
     into_tex_cnt = into_sections['TEXTUREFILES']['cnt'] if into_sections['TEXTUREFILES'] is not None else 0
     into_sf_cnt = into_sections['SOUNDFILES']['cnt'] if into_sections['SOUNDFILES'] is not None else 0
+    into_mat_cnt = into_sections['MATERIALS']['cnt'] if into_sections['MATERIALS'] is not None else 0
 
 
     # stream definitions
@@ -182,6 +183,7 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
         ttx = res.get_ttx(mat)
         itx = res.get_itx(mat)
         msk = res.get_msk(mat)
+        par = res.get_par(mat)
         if tex > -1:
             res.set_tex(mat, tex+into_tex_cnt)
         if ttx > -1:
@@ -189,10 +191,13 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
         if itx > -1:
             res.set_itx(mat, itx+into_tex_cnt)
         if msk > -1:
-            res.set_itx(mat, msk+into_msk_cnt)
+            res.set_msk(mat, msk+into_msk_cnt)
+        if par > -1:
+            res.set_par(mat, par+into_mat_cnt)
 
     # Merging materials into one array
     all_materials = {}
+    all_materials_order = []
 
     for mat_name, material in into_materials.items():
         all_materials[mat_name] = material
@@ -204,7 +209,18 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
         for mat_name, material in from_materials.items():
             if all_materials.get(mat_name) is not None:
                 all_materials[mat_name] = material
-
+    
+    all_materials_order = sorted(all_materials.keys())
+    
+    from_og_mat_indexes = {f:i for i, f in enumerate(from_sections['MATERIALS']['metadata_order'])}
+    og_mat_indexes = {f:i for i, f in enumerate(into_sections['MATERIALS']['metadata_order'])}
+    if toReplace:
+        for entry_name, value in from_og_mat_indexes.items():
+            og_mat_indexes[entry_name] = value + into_mat_cnt
+    else:
+        for entry_name, value in from_og_mat_indexes.items():
+            if og_mat_indexes[entry_name] is not None:
+                og_mat_indexes[entry_name] = value + into_mat_cnt
         
     # Change 'from' section sound indexes not to collapse with original
     # by starting counting from last 'into' section index
@@ -270,6 +286,9 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
         
     # preparing MATERIALS section
     # changing material indexes based on current TEXTUREFILES and MASKFILES section entry order
+    new_mat_indexes = {f:(i+1) for i, f in enumerate(all_materials_order)}
+    mat_index_mapping = {og_mat_indexes[k]: new_mat_indexes[k] for k in og_mat_indexes if k in new_mat_indexes}
+
     new_tex_indexes = {f:(i+1) for i, f in enumerate(sections['TEXTUREFILES']['data_order'])}
     tex_index_mapping = {og_tex_indexes[k]: new_tex_indexes[k] for k in og_tex_indexes if k in new_tex_indexes}  
 
@@ -281,6 +300,7 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
         ttx = res.get_ttx(mat)
         itx = res.get_itx(mat)
         msk = res.get_msk(mat)
+        par = res.get_par(mat)
         if tex > -1:
             res.set_tex(mat, tex_index_mapping[tex-1])
         if ttx > -1:
@@ -288,7 +308,9 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
         if itx > -1:
             res.set_itx(mat, tex_index_mapping[itx-1])
         if msk > -1:
-            res.set_itx(mat, msk_index_mapping[msk-1])
+            res.set_msk(mat, msk_index_mapping[msk-1])
+        if par > -1:
+            res.set_par(mat, mat_index_mapping[par-1])
 
     # preparing SOUNDS section
     # changing material indexes based on current SOUNDFILES section entry order
@@ -314,7 +336,6 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
     # and separately MATERIALS and SOUNDS
     materials_cnt = len(all_materials.keys())
     if materials_cnt > 0:
-        all_materials_order = sorted(all_materials.keys())
         c.write_cstring(outBuffer, "{} {}".format("MATERIALS", materials_cnt))
         for entry_name in all_materials_order:
             c.write_cstring(outBuffer, "{} {}".format(entry_name, res.get_mat_string(all_materials[entry_name])))
