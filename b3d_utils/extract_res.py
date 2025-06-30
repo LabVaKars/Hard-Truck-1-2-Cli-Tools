@@ -195,7 +195,7 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
                         if msk > -1:
                             res.set_msk(mat, msk_index_mapping[msk-1])
 
-                    newParamsStr = res.get_mat_string(mat)
+                    newParamsStr = "{} {}".format(mat_name, res.get_mat_string(mat))
                     
                     c.write_cstring(sectionDataBuffer, newParamsStr)
             

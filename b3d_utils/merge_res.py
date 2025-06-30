@@ -317,7 +317,7 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
         all_materials_order = sorted(all_materials.keys())
         c.write_cstring(outBuffer, "{} {}".format("MATERIALS", materials_cnt))
         for entry_name in all_materials_order:
-            c.write_cstring(outBuffer, res.get_mat_string(all_materials[entry_name]))
+            c.write_cstring(outBuffer, "{} {}".format(entry_name, res.get_mat_string(all_materials[entry_name])))
     else:
        c.write_cstring(outBuffer, "{} {}".format("MATERIALS", 0))
 
