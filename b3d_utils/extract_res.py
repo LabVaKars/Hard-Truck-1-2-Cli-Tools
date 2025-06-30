@@ -115,9 +115,9 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
 
 
     if section_records['TEXTUREFILES'] == 'REF':
-        tex_indexes = set((int(mat.get('tex'))-1 for mat in materials.values() if mat.get("tex") is not None)) \
-                    | set((int(mat.get('ttx'))-1 for mat in materials.values() if mat.get("ttx") is not None)) \
-                    | set((int(mat.get('itx'))-1 for mat in materials.values() if mat.get("itx") is not None))
+        tex_indexes = set((int(res.get_tex(mat))-1 for mat in materials.values() if res.get_tex(mat)>-1)) \
+                    | set((int(res.get_ttx(mat))-1 for mat in materials.values() if res.get_ttx(mat)>-1)) \
+                    | set((int(res.get_itx(mat))-1 for mat in materials.values() if res.get_itx(mat)>-1))
         tex_names = tex_section['metadata_order']
         used_names = [tex_names[i] for i in tex_indexes]
         matching_records['TEXTUREFILES'] = used_names
@@ -126,7 +126,7 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
     
 
     if section_records['MASKFILES'] == 'REF':
-        msk_indexes = set((int(mat.get("msk"))-1 for mat in materials.values() if mat.get("msk")))
+        msk_indexes = set((int(res.get_msk(mat))-1 for mat in materials.values() if res.get_msk(mat)>-1))
         msk_names = msk_section['metadata_order']
         used_names = [msk_names[i] for i in msk_indexes]
         matching_records['MASKFILES'] = used_names
@@ -166,12 +166,6 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
                 ignore_tex = matching_records['TEXTUREFILES'] is None
                 ignore_msk = matching_records['MASKFILES'] is None
 
-                mat_stream.seek(0,0)
-                new_materials = res.parse_materials(mat_stream, mat_section['cnt'])
-
-                if (matching_records["MATERIALS"] is not None and len(matching_records["MATERIALS"]) > 0): 
-                    new_materials = {mat_name:new_materials[mat_name] for mat_name in matching_records["MATERIALS"]}
-                
                 if(not ignore_tex):
                     og_tex_indexes = {f:i for i, f in enumerate(tex_section['metadata_order'])}
                     new_tex_indexes = {f:(i+1) for i, f in enumerate(matching_records['TEXTUREFILES'])}
@@ -182,38 +176,30 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
                     new_msk_indexes = {f:(i+1) for i, f in enumerate(matching_records['MASKFILES'])}
                     msk_index_mapping = {og_msk_indexes[k]: new_msk_indexes[k] for k in og_msk_indexes if k in new_msk_indexes}
 
-                for mat_name in new_materials:
+                for mat_name, mat in materials.items():
                     cnt+=1
-                    mat = new_materials[mat_name]
-                    matParams = mat['raw_string'].split('  ')
-                    if len(matParams) > 0:
-                        matParams[0] = ' '.join(matParams[0].split(' ')[1:]) # cut name
-                    else:
-                        matParams = [' '.join(mat['raw_string'].split(' ')[1:])] # cut name
+                    # mat = materials[mat_name]
 
-                    newMatParams = []
-                    i = 0
-                    while i < len(matParams):
-                        paramStr = matParams[i].replace('"', '')
-                        paramArr = paramStr.split(' ')
-                        paramName = paramArr[0]
-                        if paramName in ['tex', 'ttx', 'itx', 'msk']:
-                            paramValue = int(paramArr[1])-1
-                        if (paramName in ["tex", "ttx", "itx"] and not ignore_tex):
-                            paramValue = tex_index_mapping[paramValue]
-                            newMatParams.append("{} {}".format(paramName, paramValue))
-                        elif (paramName in ["msk"] and not ignore_msk):
-                            paramValue = msk_index_mapping[paramValue]
-                            newMatParams.append("{} {}".format(paramName, paramValue))
-                        else: # leave as is
-                            newMatParams.append(matParams[i])
-                        i+=1
-                    
-                    newParamsStr = '{} {}'.format(mat_name, '  '.join(newMatParams))
+                    if not ignore_tex:
+                        tex = res.get_tex(mat)
+                        ttx = res.get_ttx(mat)
+                        itx = res.get_itx(mat)
+                        if tex > -1:
+                            res.set_tex(mat, tex_index_mapping[tex-1])
+                        if ttx > -1:
+                            res.set_ttx(mat, tex_index_mapping[ttx-1])
+                        if itx > -1:
+                            res.set_itx(mat, tex_index_mapping[itx-1])
+                    if not ignore_msk:
+                        msk = res.get_msk(mat)
+                        if msk > -1:
+                            res.set_msk(mat, msk_index_mapping[msk-1])
+
+                    newParamsStr = res.get_mat_string(mat)
                     
                     c.write_cstring(sectionDataBuffer, newParamsStr)
             
-                c.write_cstring(sectionBuffer, '{} {}'.format('MATERIALS', len(new_materials)))
+                c.write_cstring(sectionBuffer, '{} {}'.format('MATERIALS', len(materials)))
                 sectionBuffer.write(sectionDataBuffer.getvalue())
 
                 if(matching_records['TEXTUREFILES'] is None):

@@ -45,41 +45,118 @@ def parse_materials(stream, num_items):
     materials = {}
     for j in range(num_items):
         matString = read_cstring(stream)
-        matArr = matString.split(' ')
+        matArr = matString.split(' ', 1)
         matName = matArr[0]
-        matParams = matArr[1:]
-        curMat = parse_material_params(matParams)
-        curMat["raw_string"] = matString
+        matParams = matArr[1]
+        curMat = parse_mat_string(matParams)
         materials[matName] = curMat
     
     return materials
 
-def parse_material_params(matParams):
+def get_tex(matObj):
+    idx = matObj["tex_idx"]
+    if idx > -1:
+        return matObj['params'][idx]
+    else:
+        return -1
+
+def set_tex(matObj, value):
+    idx = matObj["tex_idx"]
+    if idx > -1:
+        matObj['params'][idx] = value
+
+def get_ttx(matObj):
+    idx = matObj["ttx_idx"]
+    if idx > -1:
+        return matObj['params'][idx]
+    else:
+        return -1
+
+def set_ttx(matObj, value):
+    idx = matObj["ttx_idx"]
+    if idx > -1:
+        matObj['params'][idx] = value
+
+def get_itx(matObj):
+    idx = matObj["itx_idx"]
+    if idx > -1:
+        return matObj['params'][idx]
+    else:
+        return -1
+
+def set_itx(matObj, value):
+    idx = matObj["itx_idx"]
+    if idx > -1:
+        matObj['params'][idx] = value
+
+def get_msk(matObj):
+    idx = matObj["msk_idx"]
+    if idx > -1:
+        return matObj['params'][idx]
+    else:
+        return -1
+
+def set_msk(matObj, value):
+    idx = matObj["msk_idx"]
+    if idx > -1:
+        matObj['params'][idx] = value
+
+def get_mat_string(matObj):
+    tex_idx = matObj["tex_idx"]
+    ttx_idx = matObj["ttx_idx"]
+    itx_idx = matObj["itx_idx"]
+    msk_idx = matObj["msk_idx"]
+
+    params = list(matObj["params"]) #copy
+
+    if(tex_idx > -1):
+        params[tex_idx] = "{} {}".format("tex", params[tex_idx])
+    if(ttx_idx > -1):
+        params[ttx_idx] = "{} {}".format("tex", params[ttx_idx])
+    if(itx_idx > -1):
+        params[itx_idx] = "{} {}".format("tex", params[itx_idx])
+    if(msk_idx > -1):
+        params[msk_idx] = "{} {}".format("tex", params[msk_idx])
+
+    return " ".join(params)
+        
+
+
+def parse_mat_string(matString):
     i = 0
-    result = {}
+    result = {
+        "tex_idx": -1,
+        "ttx_idx": -1,
+        "itx_idx": -1,
+        "msk_idx": -1,
+        "params": []
+    }
+
+    matParams = [mat for mat in matString.split(' ') if mat.strip() != ""] #array without whitespaces
+
+    i = 0
+    p = 0
+    other_params_buf = []
     while i < len(matParams):
         paramName = matParams[i].replace('"', '')
         if len(paramName) > 0:
-            if paramName in ["tex", "ttx", "itx", "col", "att", "msk", "power", "coord"]:
-                result[paramName] = int(matParams[i+1])
+            if paramName in ["tex", "ttx", "itx", "msk"]:
+                if len(other_params_buf) > 0:
+                    result["params"].append(" ".join(other_params_buf))
+                    other_params_buf = []
+                    p+=1
+
+                result["{}_idx".format(paramName)] = p
+                result["params"].append(int(matParams[i+1]))
                 i+=1
-            elif paramName in ["reflect", "specular", "transp", "rot"]:
-                result[paramName] = float(matParams[i+1])
-                i+=1
-            elif paramName in ["noz", "nof", "notile", "notileu", "notilev", \
-                            "alphamirr", "bumpcoord", "usecol", "wave"]:
-                result[paramName] = True
-            elif paramName in ["RotPoint", "move"]:
-                result[paramName] = [float(matParams[i+1]), float(matParams[i+2])]
-                i+=2
-        elif paramName[0:3] == "env":
-            envid = paramName[3:]
-            if len(envid) > 0:
-                result["envid"] = int(envid)
+                p+=1
             else:
-                result["env"] = [float(matParams[i+1]), float(matParams[i+2])]
-                i+=2
+                other_params_buf.append(matParams[i])
         i+=1
+
+    if len(other_params_buf) > 0:
+        result["params"].append(" ".join(other_params_buf))
+    
     return result
 
 

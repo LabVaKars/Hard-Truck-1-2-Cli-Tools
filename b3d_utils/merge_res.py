@@ -176,41 +176,20 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
 
     # Change 'from' section material indexes not to collapse with original
     # by starting counting from last 'into' section index
-    for mat_name, material in from_materials.items():
-        matParams = material['raw_string'].split('  ')
-        if len(matParams) > 0:
-            matParams[0] = ' '.join(matParams[0].split(' ')[1:]) # cut name
-        else:
-            matParams = [' '.join(material['raw_string'].split(' ')[1:])] # cut name
+    for mat_name, mat in from_materials.items():
 
-
-
-        newMatParams = []
-        i = 0
-        while i < len(matParams):
-            paramStr = matParams[i].replace('"', '')
-            paramArr = paramStr.split(' ')
-            paramName = paramArr[0]
-            if paramName in ['tex', 'ttx', 'itx', 'msk']:
-                paramValue = int(paramArr[1])
-            if (paramName in ["tex", "ttx", "itx"]):
-                paramValue = paramValue + into_tex_cnt
-
-                newMatParams.append("{} {}".format(paramName, paramValue))
-            elif (paramName in ["msk"]):
-                paramValue = paramValue + into_msk_cnt
-                newMatParams.append("{} {}".format(paramName, paramValue))
-            else: # leave as is
-                newMatParams.append(matParams[i])
-            i+=1
-        
-        newMatParam = '{} {}'.format(mat_name, '  '.join(newMatParams))
-
-        from_materials[mat_name] = res.parse_material_params(newMatParam)
-
-        from_materials[mat_name]['raw_string'] = newMatParam
-
-
+        tex = res.get_tex(mat)
+        ttx = res.get_ttx(mat)
+        itx = res.get_itx(mat)
+        msk = res.get_msk(mat)
+        if tex > -1:
+            res.set_tex(mat, tex+into_tex_cnt)
+        if ttx > -1:
+            res.set_ttx(mat, ttx+into_tex_cnt)
+        if itx > -1:
+            res.set_itx(mat, itx+into_tex_cnt)
+        if msk > -1:
+            res.set_itx(mat, msk+into_msk_cnt)
 
     # Merging materials into one array
     all_materials = {}
@@ -229,8 +208,6 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
         
     # Change 'from' section sound indexes not to collapse with original
     # by starting counting from last 'into' section index
-
-    
     for sound_name, sound_idx in from_sounds.values():
         from_sounds[sound_name] = sound_idx+into_sf_cnt
 
@@ -293,45 +270,25 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
         
     # preparing MATERIALS section
     # changing material indexes based on current TEXTUREFILES and MASKFILES section entry order
-    # print(sections['TEXTUREFILES'])
     new_tex_indexes = {f:(i+1) for i, f in enumerate(sections['TEXTUREFILES']['data_order'])}
     tex_index_mapping = {og_tex_indexes[k]: new_tex_indexes[k] for k in og_tex_indexes if k in new_tex_indexes}  
-
-    # print(tex_index_mapping)
 
     new_msk_indexes = {f:(i+1) for i, f in enumerate(sections['MASKFILES']['data_order'])}
     msk_index_mapping = {og_msk_indexes[k]: new_msk_indexes[k] for k in og_msk_indexes if k in new_msk_indexes}
 
-    for mat_name, material in all_materials.items():
-        matParams = material['raw_string'].split('  ')
-        if len(matParams) > 0:
-            matParams[0] = ' '.join(matParams[0].split(' ')[1:]) # cut name
-        else:
-            matParams = [' '.join(material['raw_string'].split(' ')[1:])] # cut name
-
-        newMatParams = []
-        i = 0
-        while i < len(matParams):
-            paramStr = matParams[i].replace('"', '')
-            paramArr = paramStr.split(' ')
-            paramName = paramArr[0]
-            if paramName in ['tex', 'ttx', 'itx', 'msk']:
-                paramValue = int(paramArr[1])-1
-            if (paramName in ["tex", "ttx", "itx"]):
-                paramValue = tex_index_mapping[paramValue]
-                newMatParams.append("{} {}".format(paramName, paramValue))
-            elif (paramName in ["msk"]):
-                paramValue = msk_index_mapping[paramValue]
-                newMatParams.append("{} {}".format(paramName, paramValue))
-            else: # leave as is
-                newMatParams.append(matParams[i])
-            i+=1
-        
-        newMatParam = '{} {}'.format(mat_name, '  '.join(newMatParams))
-            
-        all_materials[mat_name] = res.parse_material_params(newMatParam)
-
-        all_materials[mat_name]['raw_string'] = newMatParam
+    for mat_name, mat in all_materials.items():
+        tex = res.get_tex(mat)
+        ttx = res.get_ttx(mat)
+        itx = res.get_itx(mat)
+        msk = res.get_msk(mat)
+        if tex > -1:
+            res.set_tex(mat, tex_index_mapping[tex-1])
+        if ttx > -1:
+            res.set_ttx(mat, tex_index_mapping[ttx-1])
+        if itx > -1:
+            res.set_itx(mat, tex_index_mapping[itx-1])
+        if msk > -1:
+            res.set_itx(mat, msk_index_mapping[msk-1])
 
     # preparing SOUNDS section
     # changing material indexes based on current SOUNDFILES section entry order
@@ -360,7 +317,7 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
         all_materials_order = sorted(all_materials.keys())
         c.write_cstring(outBuffer, "{} {}".format("MATERIALS", materials_cnt))
         for entry_name in all_materials_order:
-            c.write_cstring(outBuffer, all_materials[entry_name]["raw_string"])
+            c.write_cstring(outBuffer, res.get_mat_string(all_materials[entry_name]))
     else:
        c.write_cstring(outBuffer, "{} {}".format("MATERIALS", 0))
 
