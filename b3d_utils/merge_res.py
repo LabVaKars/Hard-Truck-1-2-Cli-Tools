@@ -14,22 +14,15 @@ log.setLevel(logging.DEBUG)
 
 def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
     
-    res_from_parse_stream = None
     res_from_read_stream = None
     with open(resFromFilepath, 'rb') as file:
-        res_from_parse_stream = BytesIO(file.read())
-        res_from_read_stream = BytesIO(res_from_parse_stream.getvalue())
+        res_from_read_stream = BytesIO(file.read())
 
-        
-    res_into_parse_stream = None
     res_into_read_stream = None
     with open(resToFilepath, 'rb') as file:
-        res_into_parse_stream = BytesIO(file.read())
-        res_into_read_stream = BytesIO(res_into_parse_stream.getvalue())
+        res_into_read_stream = BytesIO(file.read())
         
     if not outFilepath:
-        # basename, ext = os.path.splitext(resFromFilepath)
-        # outFilepath = '{}_extract.{}'.format(basename, ext[1:])
         outFilepath = resToFilepath
 
 
@@ -68,7 +61,7 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
 
     #Reading all sections...
     while(True):
-        section = res.read_section(res_from_parse_stream)
+        section = res.read_section(res_from_read_stream)
         if(not section):
             break
         
@@ -76,7 +69,7 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
 
         
     while(True):
-        section = res.read_section(res_into_parse_stream)
+        section = res.read_section(res_into_read_stream)
         if(not section):
             break
         

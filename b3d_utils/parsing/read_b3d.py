@@ -2,6 +2,8 @@ import struct
 import re
 import enum
 
+import parsing.skip_b3d as b3ds 
+
 class ChunkType(enum.Enum):
     END_CHUNK = 0
     END_CHUNKS = 1
@@ -838,3 +840,186 @@ def read_materials_list(stream):
         'mat_names': mat_names
     }
 
+class ChunkType(enum.Enum):
+    END_CHUNK = 0
+    END_CHUNKS = 1
+    BEGIN_CHUNK = 2
+    GROUP_CHUNK = 3
+
+def openclose(_io):
+    oc = _io.read(4)
+    # print(oc)
+    if (oc == (b'\x4D\x01\x00\x00')): # Begin_Chunk(111)
+        return ChunkType.BEGIN_CHUNK
+    elif oc == (b'\x2B\x02\x00\x00'): # End_Chunk(555)
+        return ChunkType.END_CHUNK
+    elif oc == (b'\xbc\x01\x00\x00'): # Group_Chunk(444)
+        return ChunkType.GROUP_CHUNK
+    elif oc == (b'\xde\x00\x00\x00'): # End_Chunks(222)
+        return ChunkType.END_CHUNKS
+    else:
+        # log.debug(file.tell())
+        raise Exception()
+    
+def read_roots(stream, nodesOffset):
+    
+    ex = 0
+    level = 0
+    
+    roots = {}
+    references = {}
+    texnums = {}
+    texnum_pos = {}
+
+    objName = ''
+    rootObjName = ''
+    start_pos = nodesOffset
+    end_pos = 0
+
+
+    def fill_texnum(obj_name, block_data):
+        texnum = block_data['texnum']
+        texpos = block_data['texnum_pos']
+        texnums[obj_name].add(texnum)
+        texnum_pos[obj_name].append(texpos)
+
+    while ex != ChunkType.END_CHUNKS:
+
+        ex = openclose(stream)
+        if ex == ChunkType.END_CHUNK:
+            level -= 1
+            if level == 0:
+                end_pos = stream.tell()
+                roots[objName] = {
+                    "start": start_pos,
+                    "size": end_pos - start_pos
+                }
+
+        elif ex == ChunkType.END_CHUNKS:
+            break
+        elif ex == ChunkType.GROUP_CHUNK: #skip
+            continue
+        elif ex == ChunkType.BEGIN_CHUNK:
+
+            if level == 0:
+                start_pos = stream.tell()-4
+            
+            
+            block_name = read_name32(stream)
+            block_type, = struct.unpack('<I', stream.read(4))
+            block_data = None
+
+            if level == 0:
+                texnums[block_name['name']] = set()
+                texnum_pos[block_name['name']] = []
+                rootObjName = block_name['name']
+                # print(rootObjName)
+            
+            # Switch based on block_type
+            if block_type == 0:
+                block_data = b3ds.skip_b_0(stream)
+            elif block_type == 1:
+                block_data = b3ds.skip_b_1(stream)
+            elif block_type == 2:
+                block_data = b3ds.skip_b_2(stream)
+            elif block_type == 3:
+                block_data = b3ds.skip_b_3(stream)
+            elif block_type == 4:
+                block_data = b3ds.skip_b_4(stream)
+            elif block_type == 5:
+                block_data = b3ds.skip_b_5(stream)
+            elif block_type == 6:
+                block_data = b3ds.skip_b_6(stream)
+            elif block_type == 7:
+                block_data = b3ds.skip_b_7(stream)
+            elif block_type == 8:
+                block_data = read_b_8(stream)
+            elif block_type == 9:
+                block_data = b3ds.skip_b_9(stream)
+            elif block_type == 10:
+                block_data = b3ds.skip_b_10(stream)
+            elif block_type == 11:
+                block_data = b3ds.skip_b_11(stream)
+            elif block_type == 12:
+                block_data = b3ds.skip_b_12(stream)
+            elif block_type == 13:
+                block_data = b3ds.skip_b_13(stream)
+            elif block_type == 14:
+                block_data = b3ds.skip_b_14(stream)
+            elif block_type == 15:
+                block_data = b3ds.skip_b_15(stream)
+            elif block_type == 16:
+                block_data = b3ds.skip_b_16(stream)
+            elif block_type == 17:
+                block_data = b3ds.skip_b_17(stream)
+            elif block_type == 18:
+                block_data = read_b_18(stream)
+            elif block_type == 19:
+                block_data = b3ds.skip_b_19(stream)
+            elif block_type == 20:
+                block_data = b3ds.skip_b_20(stream)
+            elif block_type == 21:
+                block_data = b3ds.skip_b_21(stream)
+            elif block_type == 22:
+                block_data = b3ds.skip_b_22(stream)
+            elif block_type == 23:
+                block_data = b3ds.skip_b_23(stream)
+            elif block_type == 24:
+                block_data = b3ds.skip_b_24(stream)
+            elif block_type == 25:
+                block_data = b3ds.skip_b_25(stream)
+            elif block_type == 26:
+                block_data = b3ds.skip_b_26(stream)
+            elif block_type == 27:
+                block_data = b3ds.skip_b_27(stream)
+            elif block_type == 28:
+                block_data = read_b_28(stream)
+            elif block_type == 29:
+                block_data = b3ds.skip_b_29(stream)
+            elif block_type == 30:
+                block_data = b3ds.skip_b_30(stream)
+            elif block_type == 31:
+                block_data = b3ds.skip_b_31(stream)
+            elif block_type == 33:
+                block_data = b3ds.skip_b_33(stream)
+            elif block_type == 34:
+                block_data = b3ds.skip_b_34(stream)
+            elif block_type == 35:
+                block_data = read_b_35(stream)
+            elif block_type == 36:
+                block_data = b3ds.skip_b_36(stream)
+            elif block_type == 37:
+                block_data = b3ds.skip_b_37(stream)
+            elif block_type == 39:
+                block_data = b3ds.skip_b_39(stream)
+            elif block_type == 40:
+                block_data = b3ds.skip_b_40(stream)
+
+            curObjName = block_name['name']
+
+            if level == 0:
+                objName = curObjName
+                references[objName] = []
+            
+            # fill reference list
+            if block_type == 18:
+                references[objName].append({
+                    "space_name" : block_data['space_name']['name'],
+                    "add_name" : block_data['add_name']['name'],
+                })
+
+            # fill texnum list
+            if block_type in [8,28,35]:
+                if(block_type == 35):
+                    fill_texnum(rootObjName, block_data)
+                for poly in block_data['polygons']:
+                    fill_texnum(rootObjName, poly)
+
+            level += 1
+
+    return {
+        "roots": roots,
+        "references": references,
+        "texnums": texnums,
+        "texnum_pos": texnum_pos
+    }

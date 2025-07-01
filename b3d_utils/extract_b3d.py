@@ -34,26 +34,6 @@ def write_size(io, ms, size):
     io.write(struct.pack("<i", size))
     io.seek(end_ms, 0)
 
-class ChunkType(enum.Enum):
-    END_CHUNK = 0
-    END_CHUNKS = 1
-    BEGIN_CHUNK = 2
-    GROUP_CHUNK = 3
-    
-def openclose(_io):
-    oc = _io.read(4)
-    # print(oc)
-    if (oc == (b'\x4D\x01\x00\x00')): # Begin_Chunk(111)
-        return ChunkType.BEGIN_CHUNK
-    elif oc == (b'\x2B\x02\x00\x00'): # End_Chunk(555)
-        return ChunkType.END_CHUNK
-    elif oc == (b'\xbc\x01\x00\x00'): # Group_Chunk(444)
-        return ChunkType.GROUP_CHUNK
-    elif oc == (b'\xde\x00\x00\x00'): # End_Chunks(222)
-        return ChunkType.END_CHUNKS
-    else:
-        # log.debug(file.tell())
-        raise Exception()
 
 class Graph:
 
@@ -134,17 +114,6 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
     #read roots from text file
     blocksToExtract = []
 
-    rootObjects = {}
-    blocks18 = {}
-    rootTexnums = {}
-    rootTexnumsPos = {}
-
-    def fill_texnum(obj_name, block_data):
-        texnum = block_data['texnum']
-        texnum_pos = block_data['texnum_pos']
-        rootTexnums[obj_name].add(texnum)
-        rootTexnumsPos[obj_name].append(texnum_pos)
-
     tt1 = time.mktime(datetime.datetime.now().timetuple())
     #Initial Kaitai Struct parsing
     log.info('initial parsing b3d start')
@@ -156,151 +125,16 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
     # read materials
     materials_list = b3dr.read_materials_list(b3d_stream)
     # read start_blocks
-    b3dr.begin_blocks = b3d_stream.read(4)
+    begin_blocks = b3d_stream.read(4)
     data_blocks_offset = b3d_stream.tell()
     # read blocks
     
-    ex = 0
-    level = 0
+    parsed_b3d = b3dr.read_roots(b3d_stream, data_blocks_offset)
 
-    objName = ''
-    rootObjName = ''
-    start_pos = data_blocks_offset
-    end_pos = 0
-
-    while ex != ChunkType.END_CHUNKS:
-
-        ex = openclose(b3d_stream)
-        if ex == ChunkType.END_CHUNK:
-            level -= 1
-            if level == 0:
-                end_pos = b3d_stream.tell()
-                rootObjects[objName] = {
-                    "start": start_pos,
-                    "size": end_pos - start_pos
-                }
-
-        elif ex == ChunkType.END_CHUNKS:
-            break
-        elif ex == ChunkType.GROUP_CHUNK: #skip
-            continue
-        elif ex == ChunkType.BEGIN_CHUNK:
-
-            if level == 0:
-                start_pos = b3d_stream.tell()-4
-            
-            
-            block_name = b3dr.read_name32(b3d_stream)
-            block_type, = struct.unpack('<I', b3d_stream.read(4))
-            block_data = None
-
-            if level == 0:
-                rootTexnums[block_name['name']] = set()
-                rootTexnumsPos[block_name['name']] = []
-                rootObjName = block_name['name']
-                # print(rootObjName)
-            
-            # Switch based on block_type
-            if block_type == 0:
-                block_data = b3ds.skip_b_0(b3d_stream)
-            elif block_type == 1:
-                block_data = b3ds.skip_b_1(b3d_stream)
-            elif block_type == 2:
-                block_data = b3ds.skip_b_2(b3d_stream)
-            elif block_type == 3:
-                block_data = b3ds.skip_b_3(b3d_stream)
-            elif block_type == 4:
-                block_data = b3ds.skip_b_4(b3d_stream)
-            elif block_type == 5:
-                block_data = b3ds.skip_b_5(b3d_stream)
-            elif block_type == 6:
-                block_data = b3ds.skip_b_6(b3d_stream)
-            elif block_type == 7:
-                block_data = b3ds.skip_b_7(b3d_stream)
-            elif block_type == 8:
-                block_data = b3dr.read_b_8(b3d_stream)
-            elif block_type == 9:
-                block_data = b3ds.skip_b_9(b3d_stream)
-            elif block_type == 10:
-                block_data = b3ds.skip_b_10(b3d_stream)
-            elif block_type == 11:
-                block_data = b3ds.skip_b_11(b3d_stream)
-            elif block_type == 12:
-                block_data = b3ds.skip_b_12(b3d_stream)
-            elif block_type == 13:
-                block_data = b3ds.skip_b_13(b3d_stream)
-            elif block_type == 14:
-                block_data = b3ds.skip_b_14(b3d_stream)
-            elif block_type == 15:
-                block_data = b3ds.skip_b_15(b3d_stream)
-            elif block_type == 16:
-                block_data = b3ds.skip_b_16(b3d_stream)
-            elif block_type == 17:
-                block_data = b3ds.skip_b_17(b3d_stream)
-            elif block_type == 18:
-                block_data = b3dr.read_b_18(b3d_stream)
-            elif block_type == 19:
-                block_data = b3ds.skip_b_19(b3d_stream)
-            elif block_type == 20:
-                block_data = b3ds.skip_b_20(b3d_stream)
-            elif block_type == 21:
-                block_data = b3ds.skip_b_21(b3d_stream)
-            elif block_type == 22:
-                block_data = b3ds.skip_b_22(b3d_stream)
-            elif block_type == 23:
-                block_data = b3ds.skip_b_23(b3d_stream)
-            elif block_type == 24:
-                block_data = b3ds.skip_b_24(b3d_stream)
-            elif block_type == 25:
-                block_data = b3ds.skip_b_25(b3d_stream)
-            elif block_type == 26:
-                block_data = b3ds.skip_b_26(b3d_stream)
-            elif block_type == 27:
-                block_data = b3ds.skip_b_27(b3d_stream)
-            elif block_type == 28:
-                block_data = b3dr.read_b_28(b3d_stream)
-            elif block_type == 29:
-                block_data = b3ds.skip_b_29(b3d_stream)
-            elif block_type == 30:
-                block_data = b3ds.skip_b_30(b3d_stream)
-            elif block_type == 31:
-                block_data = b3ds.skip_b_31(b3d_stream)
-            elif block_type == 33:
-                block_data = b3ds.skip_b_33(b3d_stream)
-            elif block_type == 34:
-                block_data = b3ds.skip_b_34(b3d_stream)
-            elif block_type == 35:
-                block_data = b3dr.read_b_35(b3d_stream)
-            elif block_type == 36:
-                block_data = b3ds.skip_b_36(b3d_stream)
-            elif block_type == 37:
-                block_data = b3ds.skip_b_37(b3d_stream)
-            elif block_type == 39:
-                block_data = b3ds.skip_b_39(b3d_stream)
-            elif block_type == 40:
-                block_data = b3ds.skip_b_40(b3d_stream)
-
-            curObjName = block_name['name']
-
-            if level == 0:
-                objName = curObjName
-                blocks18[objName] = []
-            
-            # fill reference list
-            if block_type == 18:
-                blocks18[objName].append({
-                    "space_name" : block_data['space_name']['name'],
-                    "add_name" : block_data['add_name']['name'],
-                })
-
-            # fill texnum list
-            if block_type in [8,28,35]:
-                if(block_type == 35):
-                    fill_texnum(rootObjName, block_data)
-                for poly in block_data['polygons']:
-                    fill_texnum(rootObjName, poly)
-
-            level += 1
+    rootObjects = parsed_b3d['roots']
+    blocks18 = parsed_b3d['references']
+    rootTexnums = parsed_b3d['texnums']
+    rootTexnumsPos = parsed_b3d['texnum_pos']
 
     # read end_blocks
     # b3d.end_blocks = KaitaiStream.resolve_enum(HardTruck2B3d.Identifiers, b3d._io.read_u4le())
