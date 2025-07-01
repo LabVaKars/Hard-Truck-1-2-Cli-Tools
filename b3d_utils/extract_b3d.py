@@ -13,6 +13,7 @@ from io import BytesIO
 from io import SEEK_CUR
 
 import extract_res
+import common as c
 
 # Compiling HardTruck2B3d:
 # 1) kaitai-struct-compiler --outdir ./ --no-auto-read --target python ./ksy/hard_truck_2_b3d_parts.ksy
@@ -23,16 +24,6 @@ log = logging.getLogger("extract_b3d")
 log.setLevel(logging.DEBUG)
 
 
-def reserve_size_byte(io):
-    pos = io.tell()
-    io.write(struct.pack("<i",0))
-    return pos
-
-def write_size(io, ms, size):
-    end_ms = io.tell()
-    io.seek(ms, 0)
-    io.write(struct.pack("<i", size))
-    io.seek(end_ms, 0)
 
 
 class Graph:
@@ -133,8 +124,6 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
 
     rootObjects = parsed_b3d['roots']
     blocks18 = parsed_b3d['references']
-    rootTexnums = parsed_b3d['texnums']
-    rootTexnumsPos = parsed_b3d['texnum_pos']
 
     # read end_blocks
     # b3d.end_blocks = KaitaiStream.resolve_enum(HardTruck2B3d.Identifiers, b3d._io.read_u4le())
@@ -215,8 +204,9 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
         current_texnums = set()
         root_objs = entry["nodes"]
         for obj in root_objs:
-            if rootTexnums[obj] is not None and len(rootTexnums[obj]) > 0:
-                current_texnums = current_texnums | rootTexnums[obj]
+            if rootObjects[obj] is not None and len(rootObjects[obj]["texnums"]) > 0:
+                texnums = [tx["val"] for tx in rootObjects[obj]["texnums"]]
+                current_texnums.update(texnums)
 
         #replace with new texture indexes in b3d file
         texnum_list = sorted(list(current_texnums))
@@ -226,13 +216,12 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
 
         # replace texnum indexes
         for obj in root_objs:
-            if rootTexnumsPos[obj] is not None and len(rootTexnums[obj]) > 0:
-                for pos in rootTexnumsPos[obj]:
-                    current_buffer.seek(pos, 0)
-                    texnum, = struct.unpack("<I", current_buffer.read(4))
-                    new_texnum = new_mat_idx_to_idx[texnum] + 1 # Material indexes start counting from 1
-                    current_buffer.seek(-4, 1)
-                    current_buffer.write(struct.pack("<I", new_texnum))
+            for texnum_obj in rootObjects[obj]["texnums"]:
+                pos = texnum_obj["pos"]
+                texnum = texnum_obj["val"]
+                new_texnum = new_mat_idx_to_idx[texnum] + 1 # Material indexes start counting from 1
+                current_buffer.seek(pos, 0)
+                current_buffer.write(struct.pack("<I", new_texnum))
 
         outfilename = os.path.join(outpath, '{}.b3d'.format(extFilename))
         write_split_b3d(outfilename, current_buffer, used_materials, rootObjects, spaces, root_objs)
@@ -255,11 +244,11 @@ def write_split_b3d(filename, read_from_buffer, materials_list, rootObjects, spa
     
     buffer = io.BytesIO()
     buffer.write(b'b3d\x00')
-    ms_file_size = reserve_size_byte(buffer)
-    ms_materials = reserve_size_byte(buffer)
-    ms_materials_size = reserve_size_byte(buffer)
-    ms_nodes = reserve_size_byte(buffer)
-    ms_nodes_size = reserve_size_byte(buffer)
+    ms_file_size = c.reserve_size_byte(buffer)
+    ms_materials = c.reserve_size_byte(buffer)
+    ms_materials_size = c.reserve_size_byte(buffer)
+    ms_nodes = c.reserve_size_byte(buffer)
+    ms_nodes_size = c.reserve_size_byte(buffer)
 
     cp_materials = int(buffer.tell()/4)
 
@@ -287,11 +276,11 @@ def write_split_b3d(filename, read_from_buffer, materials_list, rootObjects, spa
     buffer.write(b'\xde\x00\00\00') #EndChunks
     cp_eof = int(buffer.tell()/4)
 
-    write_size(buffer, ms_file_size, cp_eof)
-    write_size(buffer, ms_materials, cp_materials)
-    write_size(buffer, ms_materials_size, cp_nodes - cp_materials)
-    write_size(buffer, ms_nodes, cp_nodes)
-    write_size(buffer, ms_nodes_size, cp_eof - cp_nodes)
+    c.write_size(buffer, ms_file_size, cp_eof)
+    c.write_size(buffer, ms_materials, cp_materials)
+    c.write_size(buffer, ms_materials_size, cp_nodes - cp_materials)
+    c.write_size(buffer, ms_nodes, cp_nodes)
+    c.write_size(buffer, ms_nodes_size, cp_eof - cp_nodes)
 
     with open(filename, 'wb') as outFile:
         outFile.write(buffer.getvalue())

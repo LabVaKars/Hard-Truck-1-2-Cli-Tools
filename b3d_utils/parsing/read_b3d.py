@@ -868,8 +868,6 @@ def read_roots(stream, nodesOffset):
     
     roots = {}
     references = {}
-    texnums = {}
-    texnum_pos = {}
 
     objName = ''
     rootObjName = ''
@@ -880,8 +878,10 @@ def read_roots(stream, nodesOffset):
     def fill_texnum(obj_name, block_data):
         texnum = block_data['texnum']
         texpos = block_data['texnum_pos']
-        texnums[obj_name].add(texnum)
-        texnum_pos[obj_name].append(texpos)
+        roots[obj_name]["texnums"].append({
+            "val": texnum,
+            "pos": texpos - start_pos
+        })
 
     while ex != ChunkType.END_CHUNKS:
 
@@ -890,10 +890,8 @@ def read_roots(stream, nodesOffset):
             level -= 1
             if level == 0:
                 end_pos = stream.tell()
-                roots[objName] = {
-                    "start": start_pos,
-                    "size": end_pos - start_pos
-                }
+                roots[rootObjName]["start"] = start_pos
+                roots[rootObjName]["size"] = end_pos - start_pos
 
         elif ex == ChunkType.END_CHUNKS:
             break
@@ -910,10 +908,12 @@ def read_roots(stream, nodesOffset):
             block_data = None
 
             if level == 0:
-                texnums[block_name['name']] = set()
-                texnum_pos[block_name['name']] = []
                 rootObjName = block_name['name']
-                # print(rootObjName)
+                roots[rootObjName] = {
+                    "start": None,
+                    "size": None,
+                    "texnums": []
+                }
             
             # Switch based on block_type
             if block_type == 0:
@@ -1019,7 +1019,5 @@ def read_roots(stream, nodesOffset):
 
     return {
         "roots": roots,
-        "references": references,
-        "texnums": texnums,
-        "texnum_pos": texnum_pos
+        "references": references
     }

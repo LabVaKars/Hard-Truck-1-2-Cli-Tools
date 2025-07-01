@@ -253,8 +253,8 @@ def resmerge(resFromFilepath, resToFilepath, outFilepath, toReplace):
         # merge binary data from 'into' file metadata
         if into_section:
             for entry_name, metadata in into_section['metadata'].items():
-                res_into_parse_stream.seek(metadata['start'], 0)
-                section[entry_name] = res_into_parse_stream.read(metadata['size'])
+                res_into_read_stream.seek(metadata['start'], 0)
+                section[entry_name] = res_into_read_stream.read(metadata['size'])
             
             section_order = section_order + into_section['metadata_order']
         

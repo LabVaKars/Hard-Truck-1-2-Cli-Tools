@@ -1,3 +1,5 @@
+import struct
+
 class Graph:
 
     def __init__(self, graph):
@@ -84,3 +86,15 @@ def write_cstring(stream, txt):
     if txt[-1] != "\00":
         txt += "\00"
     stream.write(txt.encode("utf8"))
+
+    
+def reserve_size_byte(io):
+    pos = io.tell()
+    io.write(struct.pack("<i",0))
+    return pos
+
+def write_size(io, ms, size):
+    end_ms = io.tell()
+    io.seek(ms, 0)
+    io.write(struct.pack("<i", size))
+    io.seek(end_ms, 0)

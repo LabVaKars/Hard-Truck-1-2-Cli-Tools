@@ -106,6 +106,12 @@ remove_parser = subparser.add_parser("remove", help="Remove selected b3d nodes w
 remove_parser.add_argument('--i', help="Path to b3d file", required=True)
 
 # merge
+merge_parser = subparser.add_parser("merge", help="List b3d file")
+merge_parser.add_argument('--i-from', help="Path to b3d file to merge from", required=True)
+merge_parser.add_argument('--i-to', help="Path to b3d file to merge into", required=True)
+merge_parser.add_argument('--replace', action='store_true', help="If is set replaces nodes with same names. Ignores otherwise")
+merge_parser.add_argument('--o', help="Path to b3d file to save merge result. If not set merges into original file")
+
 
 args = parser.parse_args()
 print(args)
@@ -128,7 +134,8 @@ if args.format == 'b3d':
         list_b3d.b3dlist(args.i)
         
     elif args.command == 'merge':
-        pass
+
+        merge_b3d.b3dmerge(args.i_from, args.i_to, args.o, args.replace)
 
     elif args.command == 'remove':
         pass
