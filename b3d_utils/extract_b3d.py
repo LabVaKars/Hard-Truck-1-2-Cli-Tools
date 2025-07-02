@@ -78,7 +78,7 @@ def getHierarchyRoots(refObjs):
 def get_name(obj):
     return obj.rstrip('\00')
 
-EMPTY_NAME = '~'
+EMPTY_NAME = ''
 
 
 def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeRefs, ref_materials, selected_sections, section_records):
@@ -122,7 +122,7 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
     
     parsed_b3d = b3dr.read_roots(b3d_stream, data_blocks_offset)
 
-    rootObjects = parsed_b3d['roots']
+    all_roots = parsed_b3d['roots']
     blocks18 = parsed_b3d['references']
 
     # read end_blocks
@@ -197,15 +197,20 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
             "nodes": root_objs,
             "spaces": []
         }
+        
+    for root_name, root in all_roots.items():
+        current_buffer.seek(root["start"],0)
+        all_roots[root_name]["data"] = BytesIO(current_buffer.read(root["size"]))
 
     for extFilename, entry in outFileData.items():
         current_buffer = io.BytesIO(read_from_buffer.getvalue())
 
         current_texnums = set()
         root_objs = entry["nodes"]
+        spaces = entry["spaces"]
         for obj in root_objs:
-            if rootObjects[obj] is not None and len(rootObjects[obj]["texnums"]) > 0:
-                texnums = [tx["val"] for tx in rootObjects[obj]["texnums"]]
+            if all_roots[obj] is not None and len(all_roots[obj]["texnums"]) > 0:
+                texnums = [tx["val"] for tx in all_roots[obj]["texnums"]]
                 current_texnums.update(texnums)
 
         #replace with new texture indexes in b3d file
@@ -213,10 +218,9 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
         used_materials = sorted([idx_to_mat[idx] for idx in texnum_list])
         new_mat_idx_to_idx = {mat_to_idx[mat]:idx for idx, mat in enumerate(used_materials)}
 
-
         # replace texnum indexes
         for obj in root_objs:
-            for texnum_obj in rootObjects[obj]["texnums"]:
+            for texnum_obj in all_roots[obj]["texnums"]:
                 pos = texnum_obj["pos"]
                 texnum = texnum_obj["val"]
                 new_texnum = new_mat_idx_to_idx[texnum] + 1 # Material indexes start counting from 1
@@ -224,7 +228,13 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
                 current_buffer.write(struct.pack("<I", new_texnum))
 
         outfilename = os.path.join(outpath, '{}.b3d'.format(extFilename))
-        write_split_b3d(outfilename, current_buffer, used_materials, rootObjects, spaces, root_objs)
+        
+        all_roots_order = sorted(spaces) + sorted(root_objs)
+
+        outBuffer = c.write_output_b3d(all_roots, all_roots_order, used_materials)
+
+        with open(outfilename, 'wb') as outFile:
+            outFile.write(outBuffer.getvalue())
 
         if(resFilename):
 
@@ -239,48 +249,3 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
     tt1 = time.mktime(datetime.datetime.now().timetuple()) - tt1
 
     log.info('Completed in {} seconds'.format(tt1))
-
-def write_split_b3d(filename, read_from_buffer, materials_list, rootObjects, spaces, objs):
-    
-    buffer = io.BytesIO()
-    buffer.write(b'b3d\x00')
-    ms_file_size = c.reserve_size_byte(buffer)
-    ms_materials = c.reserve_size_byte(buffer)
-    ms_materials_size = c.reserve_size_byte(buffer)
-    ms_nodes = c.reserve_size_byte(buffer)
-    ms_nodes_size = c.reserve_size_byte(buffer)
-
-    cp_materials = int(buffer.tell()/4)
-
-    buffer.write(struct.pack("<i", len(materials_list))) #Material count
-    for mat_name in materials_list:
-        b3dr.write_name(buffer, mat_name)
-
-    cp_nodes = int(buffer.tell()/4)
-
-    buffer.write(b'\x4D\x01\x00\x00') #BeginChunks
-    for space in spaces:
-        rootObj = rootObjects[space]
-        read_from_buffer.seek(rootObj['start'], 0)
-        temp = read_from_buffer.read(rootObj['size'])
-
-        buffer.write(temp)
-
-    for obj in objs:
-        rootObj = rootObjects[obj]
-        read_from_buffer.seek(rootObj['start'], 0)
-        temp = read_from_buffer.read(rootObj['size'])
-
-        buffer.write(temp)
-
-    buffer.write(b'\xde\x00\00\00') #EndChunks
-    cp_eof = int(buffer.tell()/4)
-
-    c.write_size(buffer, ms_file_size, cp_eof)
-    c.write_size(buffer, ms_materials, cp_materials)
-    c.write_size(buffer, ms_materials_size, cp_nodes - cp_materials)
-    c.write_size(buffer, ms_nodes, cp_nodes)
-    c.write_size(buffer, ms_nodes_size, cp_eof - cp_nodes)
-
-    with open(filename, 'wb') as outFile:
-        outFile.write(buffer.getvalue())

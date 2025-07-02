@@ -3,9 +3,12 @@ import sys
 import argparse
 import os
 
+import remove_b3d
 import merge_b3d
 import extract_b3d
 import list_b3d
+
+import remove_res
 import merge_res
 import extract_res
 import list_res
@@ -45,7 +48,7 @@ extract_parser.add_argument('--i', help="Path to res file", required=True)
 extract_parser.add_argument('--sections', help="List of sections to include. All included by default", nargs="+", choices=SECTIONS)
 extract_parser.add_argument('--o', help="Path to output file. {name}_extract.res by default")
 
-# Res settings
+#   Res settings
 extract_parser.add_argument('--inc-soundfiles', type = parse_items, help="Soundfile full name in res. Example: snd\\alarm.wav")
 extract_parser.add_argument('--ref-soundfiles', action='store_true', help="Extract only soundfiles referenced within this resource file. --inc-soundfiles is ignored if this flag is set")
 extract_parser.add_argument('--inc-backfiles', type = parse_items, help="Backfile full name in res. Example: txr\\sky.txr")
@@ -67,6 +70,10 @@ merge_parser.add_argument('--i-to', help="Path to res file to merge into", requi
 merge_parser.add_argument('--replace', action='store_true', help="If is set replaces resources with same names. Ignores otherwise")
 merge_parser.add_argument('--o', help="Path to res file to save merge result. If not set merges into original file")
 
+#remove
+remove_parser = subparser.add_parser("remove", help="Remove selected resources res file")
+remove_parser.add_argument('--i', help="Path to res file", required=True)
+remove_parser.add_argument('--o', help="Path to res file to save result. If not set save into original file")
 
 
 
@@ -85,7 +92,7 @@ extract_parser.add_argument('--o', help="Path to output folder/file. Default is 
 extract_parser.add_argument('--res', help="Path to res file. If is set, exports associated res file(s) with defined parameters.")
 extract_parser.add_argument('--ref-materials', action='store_true', help="Save only materials used in this .b3d")
 
-# Settings for connected res file
+#   Settings for connected res file
 extract_parser.add_argument('--sections', help="List of res sections to include. All included by default", nargs="+", choices=SECTIONS)
 extract_parser.add_argument('--inc-soundfiles', type = parse_items, help="Soundfile full name in res. Example: snd\\alarm.wav")
 extract_parser.add_argument('--ref-soundfiles', action='store_true', help="Extract only soundfiles referenced within this resource file. --inc-soundfiles is ignored if this flag is set")
@@ -104,6 +111,9 @@ list_parser.add_argument('--i', help="Path to b3d file", required=True)
 #remove
 remove_parser = subparser.add_parser("remove", help="Remove selected b3d nodes with all references from b3d file")
 remove_parser.add_argument('--i', help="Path to b3d file", required=True)
+remove_parser.add_argument('--rem-nodes', type = parse_items, help="List of node names divided by comma. Accepts comma-separated string or path to file with comma-separated string. File path should start with @. For example: @test.txt")
+remove_parser.add_argument('--rem-materials', type = parse_items, help="Material name in res")
+remove_parser.add_argument('--o', help="Path to b3d file to save result. If not set save into original file")
 
 # merge
 merge_parser = subparser.add_parser("merge", help="List b3d file")
@@ -134,11 +144,10 @@ if args.format == 'b3d':
         list_b3d.b3dlist(args.i)
         
     elif args.command == 'merge':
-
         merge_b3d.b3dmerge(args.i_from, args.i_to, args.o, args.replace)
 
     elif args.command == 'remove':
-        pass
+        remove_b3d.b3dremove(args.i, args.o, args.rem_materials, args.rem_nodes)
 
 elif args.format == 'res':
     

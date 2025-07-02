@@ -1,4 +1,7 @@
 import struct
+from io import BytesIO
+
+import parsing.read_b3d as b3dr
 
 class Graph:
 
@@ -98,3 +101,41 @@ def write_size(io, ms, size):
     io.seek(ms, 0)
     io.write(struct.pack("<i", size))
     io.seek(end_ms, 0)
+
+    
+def write_output_b3d(all_roots, all_roots_order, material_list):
+    outBuffer = BytesIO()
+    
+    outBuffer.write(b'b3d\x00')
+    ms_file_size = reserve_size_byte(outBuffer)
+    ms_materials = reserve_size_byte(outBuffer)
+    ms_materials_size = reserve_size_byte(outBuffer)
+    ms_nodes = reserve_size_byte(outBuffer)
+    ms_nodes_size = reserve_size_byte(outBuffer)
+
+    cp_materials = int(outBuffer.tell()/4)
+
+    outBuffer.write(struct.pack("<i", len(material_list))) #Material count
+    for mat_name in material_list:
+        b3dr.write_name(outBuffer, mat_name)
+        
+    cp_nodes = int(outBuffer.tell()/4)
+    
+    outBuffer.write(b'\x4D\x01\x00\x00') #BeginChunks
+    
+    for root_name in all_roots_order:
+        root = all_roots[root_name]
+        temp = root["data"].getvalue()
+        outBuffer.write(temp)
+
+    outBuffer.write(b'\xde\x00\00\00') #EndChunks
+
+    cp_eof = int(outBuffer.tell()/4)
+
+    write_size(outBuffer, ms_file_size, cp_eof)
+    write_size(outBuffer, ms_materials, cp_materials)
+    write_size(outBuffer, ms_materials_size, cp_nodes - cp_materials)
+    write_size(outBuffer, ms_nodes, cp_nodes)
+    write_size(outBuffer, ms_nodes_size, cp_eof - cp_nodes)
+
+    return outBuffer

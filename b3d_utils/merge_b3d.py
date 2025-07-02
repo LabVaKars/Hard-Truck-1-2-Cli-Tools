@@ -90,39 +90,7 @@ def b3dmerge(b3dFromFilepath, b3dToFilepath, outFilepath, toReplace):
             root["data"].seek(tx["pos"], 0)
             root["data"].write(struct.pack("<I", tx["val"]))
 
-    outBuffer = BytesIO()
-    
-    outBuffer.write(b'b3d\x00')
-    ms_file_size = c.reserve_size_byte(outBuffer)
-    ms_materials = c.reserve_size_byte(outBuffer)
-    ms_materials_size = c.reserve_size_byte(outBuffer)
-    ms_nodes = c.reserve_size_byte(outBuffer)
-    ms_nodes_size = c.reserve_size_byte(outBuffer)
-
-    cp_materials = int(outBuffer.tell()/4)
-
-    outBuffer.write(struct.pack("<i", len(all_materials_order))) #Material count
-    for mat_name in all_materials_order:
-        b3dr.write_name(outBuffer, mat_name)
-        
-    cp_nodes = int(outBuffer.tell()/4)
-    
-    outBuffer.write(b'\x4D\x01\x00\x00') #BeginChunks
-    
-    for root_name in all_roots_order:
-        root = all_roots[root_name]
-        temp = root["data"].getvalue()
-        outBuffer.write(temp)
-
-    outBuffer.write(b'\xde\x00\00\00') #EndChunks
-
-    cp_eof = int(outBuffer.tell()/4)
-
-    c.write_size(outBuffer, ms_file_size, cp_eof)
-    c.write_size(outBuffer, ms_materials, cp_materials)
-    c.write_size(outBuffer, ms_materials_size, cp_nodes - cp_materials)
-    c.write_size(outBuffer, ms_nodes, cp_nodes)
-    c.write_size(outBuffer, ms_nodes_size, cp_eof - cp_nodes)
+    outBuffer = c.write_output_b3d(all_roots, all_roots_order, all_materials_order)
 
     with open(outFilepath, 'wb') as outFile:
         outFile.write(outBuffer.getvalue())
