@@ -62,6 +62,7 @@ extract_parser.add_argument('--inc-sounds', type = parse_items, help="Sound name
 #list - parses res. List all resources
 list_parser = subparser.add_parser("list", help="List res file")
 list_parser.add_argument('--i', help="Path to res file", required=True)
+list_parser.add_argument('--o', help="Path to output file. If not set - prints to terminal")
 
 #merge - merges two res-files into single one
 merge_parser = subparser.add_parser("merge", help="Merge selected res sections and/or selected records into .res file")
@@ -75,6 +76,17 @@ remove_parser = subparser.add_parser("remove", help="Remove selected resources r
 remove_parser.add_argument('--i', help="Path to res file", required=True)
 remove_parser.add_argument('--o', help="Path to res file to save result. If not set save into original file")
 
+#   Res settings
+
+remove_parser.add_argument('--rem-soundfiles', type = parse_items, help="Soundfile full name in res. Example: snd\\alarm.wav")
+# remove_parser.add_argument('--ref-soundfiles', action='store_true', help="Extract only soundfiles referenced within this resource file. --inc-soundfiles is ignored if this flag is set")
+remove_parser.add_argument('--rem-backfiles', type = parse_items, help="Backfile full name in res. Example: txr\\sky.txr")
+remove_parser.add_argument('--rem-maskfiles', type = parse_items, help="Maskfile full name in res. Example: txr\\rain.txr")
+# remove_parser.add_argument('--ref-maskfiles', action='store_true', help="Extract only texturefiles referenced within this resource file. --inc-maskfiles is ignored if this flag is set")
+remove_parser.add_argument('--rem-texturefiles', type = parse_items, help="Texturefile full name in res. Example: txr\\tree.txr")
+# remove_parser.add_argument('--ref-texturefiles', action='store_true', help="Extract only texturefiles referenced within this resource file. --inc-texturefiles is ignored if this flag is set")
+remove_parser.add_argument('--rem-materials', type = parse_items, help="Material name in res")
+remove_parser.add_argument('--rem-sounds', type = parse_items, help="Sound name in res")
 
 
 
@@ -107,6 +119,8 @@ extract_parser.add_argument('--inc-sounds', type = parse_items, help="Sound name
 #list - parses b3d. List all nodes
 list_parser = subparser.add_parser("list", help="List b3d file")
 list_parser.add_argument('--i', help="Path to b3d file", required=True)
+list_parser.add_argument('--t', help="What type of information to list. Availabe options: MATERIALS, ROOTS, FULL", choices=['MATERIALS','ROOTS','FULL'], required=True)
+list_parser.add_argument('--o', help="Path to output file. If not set - prints to terminal")
 
 #remove
 remove_parser = subparser.add_parser("remove", help="Remove selected b3d nodes with all references from b3d file")
@@ -141,7 +155,7 @@ if args.format == 'b3d':
         extract_b3d.b3dextract(args.i, args.res, args.o, args.inc_nodes, args.split, args.node_refs, args.ref_materials, res_params["current_sections"], res_params["section_records"])
 
     elif args.command == 'list':
-        list_b3d.b3dlist(args.i)
+        list_b3d.b3dlist(args.i, args.t, args.o)
         
     elif args.command == 'merge':
         merge_b3d.b3dmerge(args.i_from, args.i_to, args.o, args.replace)
@@ -167,7 +181,7 @@ elif args.format == 'res':
 
     elif args.command == 'list':
 
-        list_res.reslist(args.i)
+        list_res.reslist(args.i, args.o)
     
     elif args.command == 'merge':
 

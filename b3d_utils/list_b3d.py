@@ -21,7 +21,7 @@ log.setLevel(logging.DEBUG)
 
 blocksWithChildren = [2,3,4,5,6,7,9,10,11,19,21,22,24,26,29,33,36,37,39]
 
-def b3dlist(b3dFilename):
+def b3dlist(b3dFilename, listType, outFilename):
 
     rootObjects = {}
     blocks18 = {}
@@ -32,7 +32,7 @@ def b3dlist(b3dFilename):
     # read header
     b3dr.read_file_header(b3d_stream)
     # read materials
-    materials_list = b3dr.read_materials_list(b3d_stream)
+    materials_list = [mat["name"] for mat in b3dr.read_materials_list(b3d_stream)["mat_names"]]
     # read start_blocks
     b3dr.begin_blocks = b3d_stream.read(4)
     data_blocks_offset = b3d_stream.tell()
@@ -190,6 +190,26 @@ def b3dlist(b3dFilename):
 
             level += 1
 
-    print(json.dumps(nodes))
+    output = ''
+    if listType == 'MATERIALS':
+        mat_list = ",\n".join(sorted(materials_list))
+        output = mat_list
+        # print(materials_list)
+    elif listType == 'ROOTS':
+        roots = sorted([n['bname'] for n in chidren_arrays[0]])
+        roots = ',\n'.join(roots)
+        # print(',\n'.join(roots))
+        output = roots
+    elif listType == 'FULL':
+        # print(nodes)
+        # nodes = []
+        # print(json.dumps(chidren_arrays[0]))
+        output = json.dumps(chidren_arrays)
+    
+    if outFilename is not None:
+        with open(outFilename, 'wb') as outFile:
+            outFile.write(output.encode('utf-8'))
+    else:
+        print(output)
 
-    tt1 = time.mktime(datetime.datetime.now().timetuple()) - tt1
+    # tt1 = time.mktime(datetime.datetime.now().timetuple()) - tt1
