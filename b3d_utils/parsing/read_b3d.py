@@ -559,15 +559,14 @@ def read_b_28(stream):
 
 def read_b_29(stream):
     bound1 = read_sphere(stream)
-    unk_i1, unk_i2 = struct.unpack('<II', stream.read(8))
-    unk_1 = read_sphere(stream)
     unk_count, = struct.unpack('<I', stream.read(4))
+    unk_i1, = struct.unpack('<I', stream.read(4))
+    unk_1 = read_sphere(stream)
     unk_floats = list(struct.unpack(f'<{unk_count}f', stream.read(4 * unk_count)))
     child_cnt, = struct.unpack('<I', stream.read(4))
     return {
         'bound1': bound1,
         'unk_i1': unk_i1,
-        'unk_i2': unk_i2,
         'unk_1': unk_1,
         'unk_count': unk_count,
         'unk_floats': unk_floats,
