@@ -114,7 +114,7 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
     # read header
     b3dr.read_file_header(b3d_stream)
     # read materials
-    materials_list = b3dr.read_materials_list(b3d_stream)
+    materials_list = [m["name"] for m in b3dr.read_materials_list(b3d_stream)["mat_names"]]
     # read start_blocks
     begin_blocks = b3d_stream.read(4)
     data_blocks_offset = b3d_stream.tell()
@@ -136,8 +136,8 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
 
     # log.info(blocksToExtract)
 
-    mat_to_idx = {mat['name']:idx for idx, mat in enumerate(materials_list['mat_names'])}
-    idx_to_mat = {idx:mat['name'] for idx, mat in enumerate(materials_list['mat_names'])}
+    mat_to_idx = {mat:idx for idx, mat in enumerate(materials_list)}
+    idx_to_mat = {idx:mat for idx, mat in enumerate(materials_list)}
 
     read_from_buffer = None
     with open(b3dFilename, 'rb') as file:
@@ -203,7 +203,6 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
         all_roots[root_name]["data"] = BytesIO(current_buffer.read(root["size"]))
 
     for extFilename, entry in outFileData.items():
-        current_buffer = io.BytesIO(read_from_buffer.getvalue())
 
         current_texnums = set()
         root_objs = entry["nodes"]
@@ -213,17 +212,21 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
                 texnums = [tx["val"] for tx in all_roots[obj]["texnums"]]
                 current_texnums.update(texnums)
 
+        used_materials = sorted([idx_to_mat[idx] for idx in list(current_texnums)])
+
+        og_mat_indexes = {f:i for i, f in enumerate(materials_list)}
+        new_mat_indexes = {f:(i+1) for i, f in enumerate(used_materials)}
+        mat_index_mapping = {og_mat_indexes[k]: new_mat_indexes[k] for k in og_mat_indexes if k in new_mat_indexes}            
+
         #replace with new texture indexes in b3d file
-        texnum_list = sorted(list(current_texnums))
-        used_materials = sorted([idx_to_mat[idx] for idx in texnum_list])
-        new_mat_idx_to_idx = {mat_to_idx[mat]:idx for idx, mat in enumerate(used_materials)}
 
         # replace texnum indexes
         for obj in root_objs:
+            current_buffer = all_roots[obj]["data"]
             for texnum_obj in all_roots[obj]["texnums"]:
                 pos = texnum_obj["pos"]
                 texnum = texnum_obj["val"]
-                new_texnum = new_mat_idx_to_idx[texnum] + 1 # Material indexes start counting from 1
+                new_texnum = mat_index_mapping[texnum]
                 current_buffer.seek(pos, 0)
                 current_buffer.write(struct.pack("<I", new_texnum))
 
