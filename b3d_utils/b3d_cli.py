@@ -12,6 +12,7 @@ import remove_res
 import merge_res
 import extract_res
 import list_res
+import unpack_res
 
 import common
 
@@ -90,6 +91,8 @@ remove_parser.add_argument('--ref-texturefiles', action='store_true', help="Extr
 remove_parser.add_argument('--rem-materials', type = parse_items, help="Material name in res")
 remove_parser.add_argument('--rem-sounds', type = parse_items, help="Sound name in res")
 
+unpack_parser = subparser.add_parser("unpack", help="Remove selected resources res file")
+unpack_parser.add_argument('--i', help="Path to res file", required=True)
 
 
 #b3d utils
@@ -202,3 +205,7 @@ elif args.format == 'res':
         )
 
         remove_res.resremove(args.i, args.o, res_params["section_records"])
+
+    elif args.command == 'unpack':
+
+        unpack_res.resunpack(args.i)

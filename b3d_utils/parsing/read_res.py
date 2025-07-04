@@ -37,7 +37,6 @@ def parse_sounds(stream, num_items):
         soundArr = soundString.split(' ')
         soundName = soundArr[0]
         soundIndex = soundArr[1]
-        # print("{} {}".format(soundName, soundIndex))
         sounds[soundName] = int(soundIndex)
     return sounds
 
@@ -187,7 +186,7 @@ def read_section(stream):
         if section_name == u"MASKFILES":
             data = read_file_metadata(stream, num_items)
         elif section_name == u"SOUNDS":
-            data = read_string_metadata(stream, num_items)
+            data = read_sound_metadata(stream, num_items)
         elif section_name == u"TEXTUREFILES":
             data = read_file_metadata(stream, num_items)
         elif section_name == u"SOUNDFILES":
@@ -195,7 +194,7 @@ def read_section(stream):
         elif section_name == u"COLORS":
             data = read_string(stream, num_items)
         elif section_name == u"MATERIALS":
-            data = read_string_metadata(stream, num_items)
+            data = read_material_metadata(stream, num_items)
         elif section_name == u"BACKFILES":
             data = read_file_metadata(stream, num_items)
         elif section_name == u"PALETTEFILES":
@@ -212,6 +211,21 @@ def read_section(stream):
             'metadata': data['data']
         }
 
+def read_material_metadata(stream, num_items):
+    data = parse_materials(stream, num_items)
+    data_order = [k for k in data.keys()]
+    return {
+        "data_order": data_order,
+        "data": data
+    }
+
+def read_sound_metadata(stream, num_items):
+    data = parse_sounds(stream, num_items)
+    data_order = [k for k in data.keys()]
+    return {
+        "data_order": data_order,
+        "data": data
+    }
 
 def read_file_metadata(stream, num_items): #for most of *FILES
     data = {}
