@@ -15,6 +15,8 @@ import list_res
 
 import common
 
+from consts import SECTIONS
+
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger("b3d_cli")
 log.setLevel(logging.DEBUG)
@@ -32,7 +34,7 @@ def parse_items(value):
         items = value.strip().split(',')
     return items
 
-SECTIONS = ["PALETTEFILES", "SOUNDFILES", "BACKFILES", "MASKFILES", "TEXTUREFILES", "COLORS", "MATERIALS", "SOUNDS"]
+
 
 parser = argparse.ArgumentParser(description="Say hello")
 
@@ -79,12 +81,12 @@ remove_parser.add_argument('--o', help="Path to res file to save result. If not 
 #   Res settings
 
 remove_parser.add_argument('--rem-soundfiles', type = parse_items, help="Soundfile full name in res. Example: snd\\alarm.wav")
-# remove_parser.add_argument('--ref-soundfiles', action='store_true', help="Extract only soundfiles referenced within this resource file. --inc-soundfiles is ignored if this flag is set")
+remove_parser.add_argument('--ref-soundfiles', action='store_true', help="Extract only soundfiles referenced within this resource file. --inc-soundfiles is ignored if this flag is set")
 remove_parser.add_argument('--rem-backfiles', type = parse_items, help="Backfile full name in res. Example: txr\\sky.txr")
 remove_parser.add_argument('--rem-maskfiles', type = parse_items, help="Maskfile full name in res. Example: txr\\rain.txr")
-# remove_parser.add_argument('--ref-maskfiles', action='store_true', help="Extract only texturefiles referenced within this resource file. --inc-maskfiles is ignored if this flag is set")
+remove_parser.add_argument('--ref-maskfiles', action='store_true', help="Extract only texturefiles referenced within this resource file. --inc-maskfiles is ignored if this flag is set")
 remove_parser.add_argument('--rem-texturefiles', type = parse_items, help="Texturefile full name in res. Example: txr\\tree.txr")
-# remove_parser.add_argument('--ref-texturefiles', action='store_true', help="Extract only texturefiles referenced within this resource file. --inc-texturefiles is ignored if this flag is set")
+remove_parser.add_argument('--ref-texturefiles', action='store_true', help="Extract only texturefiles referenced within this resource file. --inc-texturefiles is ignored if this flag is set")
 remove_parser.add_argument('--rem-materials', type = parse_items, help="Material name in res")
 remove_parser.add_argument('--rem-sounds', type = parse_items, help="Sound name in res")
 
@@ -188,4 +190,15 @@ elif args.format == 'res':
         merge_res.resmerge(args.i_from, args.i_to, args.o, args.replace)
     
     elif args.command == 'remove':
-        pass
+        
+        res_params = common.get_res_params(
+            [], 
+            args.rem_soundfiles, args.ref_soundfiles,
+            args.rem_backfiles, 
+            args.rem_maskfiles, args.ref_maskfiles,
+            args.rem_texturefiles, args.ref_texturefiles,
+            args.rem_materials,
+            args.rem_sounds
+        )
+
+        remove_res.resremove(args.i, args.o, res_params["section_records"])

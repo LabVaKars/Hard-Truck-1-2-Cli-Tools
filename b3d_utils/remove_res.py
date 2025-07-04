@@ -2,19 +2,18 @@ import logging
 import sys
 import os
 import fnmatch
+import struct
 from io import BytesIO
 
 import parsing.read_res as res
 import common as c
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-log = logging.getLogger("extract_res")
+log = logging.getLogger("remove_res")
 log.setLevel(logging.DEBUG)
 
+def resremove(resFilepath, outFilepath, section_records):
 
-
-def resextract(resFilepath, outFilepath, selected_sections, section_records):
-    
     read_from_stream = None
     with open(resFilepath, 'rb') as file:
         read_from_stream = BytesIO(file.read())
@@ -23,7 +22,7 @@ def resextract(resFilepath, outFilepath, selected_sections, section_records):
         basename, ext = os.path.splitext(resFilepath)
         outFilepath = '{}_extract.{}'.format(basename, ext[1:])
 
-    outBuffer = c.write_matching_records(read_from_stream, selected_sections, section_records, False)
+    outBuffer = c.write_matching_records(read_from_stream, [], section_records, True)
 
     with open(outFilepath, 'wb') as outFile:
         outFile.write(outBuffer.getvalue())

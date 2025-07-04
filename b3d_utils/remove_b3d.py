@@ -9,7 +9,7 @@ import parsing.read_b3d as b3dr
 import common as c
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-log = logging.getLogger("merge_b3d")
+log = logging.getLogger("remove_b3d")
 log.setLevel(logging.DEBUG)
 
 def b3dremove(b3dFilepath, outFilepath, remMaterials, remNodes):
