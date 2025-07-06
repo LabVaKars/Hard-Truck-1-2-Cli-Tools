@@ -44,6 +44,42 @@ class Graph:
 
         return visited
 
+def unmask_template(templ):
+    offset = 0
+    unmasks = []
+    t_a = int(templ[0])
+    t_r = int(templ[1])
+    t_g = int(templ[2])
+    t_b = int(templ[3])
+    total_bytes = t_r + t_g + t_b + t_a
+    for i in range(4):
+        cur_int = int(templ[i])
+        lzeros = offset
+        bits = cur_int
+        rzeros = total_bytes - lzeros - bits
+        unmasks.append([lzeros, bits, rzeros])
+        offset += cur_int
+    return unmasks
+
+class BitMask:
+    def __init__(self):
+        self.lzeros = 0
+        self.ones = 0
+        self.rzeros = 0
+
+def unmask_bits(num, bytes_cnt=2):
+    bits = [int(digit) for digit in bin(num)[2:]]
+    bitmask = BitMask()
+    if num == 0:
+        return bitmask
+    for bit in bits:
+        if bit:
+            bitmask.ones+=1
+        else:
+            bitmask.rzeros+=1
+        bitmask.lzeros = bytes_cnt*8 - len(bits)
+    return bitmask
+
 def getHierarchyRoots(refObjs):
 
     graph = {}
