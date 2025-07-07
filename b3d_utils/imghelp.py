@@ -222,7 +222,15 @@ def trueimage_txr_to_tga32(stream, transp_color, bytes_per_pixel):
     for mipmap in mipmaps:
         mipmap_header[8] = mipmap['width']
         mipmap_header[9] = mipmap['height']
-        mipmaps_data.append(write_tga8888(mipmap_header, mipmap['colors'], pfrm, transp_color, bytes_per_pixel))
+        mipmapObj = {
+            "data": None,
+            "h": None,
+            "w": None
+        }
+        mipmapObj["data"] = write_tga8888(mipmap_header, mipmap['colors'], pfrm, transp_color, bytes_per_pixel)
+        mipmapObj["h"] = mipmap['height']
+        mipmapObj["w"] = mipmap['width']
+        mipmaps_data.append(mipmapObj)
 
     header[8] = width
     header[9] = height
@@ -275,7 +283,7 @@ def colormap_txr_to_tga32(stream, transp_color):
     outBuffer.write(colors_pack)
 
     result = {}
-    result['format'] = [4,4,4,4] #probably
+    result['format'] = None
     result['has_mipmap'] = False
     result['data'] = outBuffer
 
@@ -668,8 +676,6 @@ def msk_to_tga32(stream):
     header[10] = 32 #PixelDepth
     header[11] = 32 #ImageDescriptor
 
-    pfrm = [5,6,5,0]
-
     while True:
         footer_identifier = stream.read(4).decode('cp1251')
         if footer_identifier == 'PFRM':
@@ -684,8 +690,22 @@ def msk_to_tga32(stream):
         stream.seek(-4, 1)
         break
 
-    result = {
-        "data": None
-    }
-    result["data"] = write_tga8888(header, colors, pfrm, (0,0,0), bytes_per_pixel)
+    transp_color = (0,0,0)
+    if bytes_per_pixel == 1:
+        colors_before = list(colors)
+        colors_after = palette_to_colors(palette, colors_before, transp_color)
+        outBuffer = BytesIO()
+
+        header_pack = struct.pack("<3b2hb4h2b", *header)
+        colors_pack = struct.pack("<"+str(colors_size*4)+"B", *colors_after)
+        outBuffer.write(header_pack)
+        outBuffer.write(colors_pack)
+    else: # bytes_per_pixel == 2
+        pfrm = [63488,2016,31,0] # 5,6,5,0
+        outBuffer = write_tga8888(header, colors, pfrm, transp_color, bytes_per_pixel)
+
+    result = {}
+    result["format"] = pfrm
+    result["data"] = outBuffer
+    result["magic"] = magic
     return result
