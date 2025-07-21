@@ -13,6 +13,7 @@ import merge_res
 import extract_res
 import list_res
 import unpack_res
+import pack_res
 
 import common
 
@@ -91,9 +92,13 @@ remove_parser.add_argument('--ref-texturefiles', action='store_true', help="Extr
 remove_parser.add_argument('--rem-materials', type = parse_items, help="Material name in res")
 remove_parser.add_argument('--rem-sounds', type = parse_items, help="Sound name in res")
 
-unpack_parser = subparser.add_parser("unpack", help="Remove selected resources res file")
+unpack_parser = subparser.add_parser("unpack", help="Unpack selected res file")
 unpack_parser.add_argument('--i', help="Path to res file", required=True)
+unpack_parser.add_argument('--sections', help="List of sections to include. All included by default", nargs="+", choices=SECTIONS)
 
+pack_parser = subparser.add_parser("pack", help="Unpack selected res file")
+pack_parser.add_argument('--i', help="Path to unpacked res folder", required=True)
+pack_parser.add_argument('--o', help="Path to output res file. If not set, input folder name is used")
 
 #b3d utils
 b3d_parser = format_subparser.add_parser("b3d", help="Commands to work with .b3d files")
@@ -208,4 +213,14 @@ elif args.format == 'res':
 
     elif args.command == 'unpack':
 
-        unpack_res.resunpack(args.i)
+        selected_sections = None
+        if(args.sections):
+            selected_sections = args.sections
+        else:
+            selected_sections = SECTIONS
+            
+        unpack_res.resunpack(args.i, selected_sections)
+        
+    # elif args.command == 'pack':
+
+    #     pack_res.respack(args.i, args.o)

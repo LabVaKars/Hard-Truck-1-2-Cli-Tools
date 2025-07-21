@@ -12,22 +12,69 @@ log = logging.getLogger("extract_res")
 log.setLevel(logging.DEBUG)
 
 def parse_plm(stream):
-    # colors = []
+
     magic = stream.read(4).decode("UTF-8")
     pal_size = struct.unpack("<I", stream.read(4))[0]
-    cat1 = stream.read(4).decode("UTF-8")
-    cat1_size = struct.unpack("<I", stream.read(4))[0]
-    colors = []
-    for i in range(cat1_size // 3):
-        r = struct.unpack("<B",stream.read(1))[0]
-        g = struct.unpack("<B",stream.read(1))[0]
-        b = struct.unpack("<B",stream.read(1))[0]
-        colors.append({
-            "r": r,
-            "g": g,
-            "b": b
-        })
-    return colors
+    size_left = pal_size
+    plm_sections = {
+        "PALT" : [],
+        "OPAC": [],
+        "FOG": [],
+        "INTE": []
+    } 
+    while(size_left > 0):
+        sect = stream.read(4).decode("UTF-8").strip()
+        sect_size = struct.unpack("<I", stream.read(4))[0]
+        
+        if sect == "PALT":
+            colors = []
+            for i in range(sect_size // 3):
+                r = struct.unpack("<B",stream.read(1))[0]
+                g = struct.unpack("<B",stream.read(1))[0]
+                b = struct.unpack("<B",stream.read(1))[0]
+                colors.append({
+                    "r": r,
+                    "g": g,
+                    "b": b
+                })
+            plm_sections["PALT"] = colors
+
+        elif sect == "OPAC":
+            blend_cnt = struct.unpack("<I", stream.read(4))[0]  # 9
+            opac_depth = struct.unpack("<I", stream.read(4))[0] # 23
+            entry_size = struct.unpack("<I", stream.read(4))[0]
+            pal_rows = []
+            for j in range(blend_cnt):
+                pal_indexes = []
+                for i in range(opac_depth):
+                    indexes = list(struct.unpack("<256B", stream.read(256)))
+                    pal_indexes.append(indexes)
+                pal_rows.append(pal_indexes)
+            plm_sections["OPAC"] = pal_rows
+        
+        elif sect == "FOG\x00":
+            pal_index = struct.unpack("<I", stream.read(4))[0]
+            blend_cnt = struct.unpack("<I", stream.read(4))[0]
+            entry_size = struct.unpack("<I", stream.read(4))[0]
+            blend_indexes = []
+            for i in range(blend_cnt):
+                indexes = list(struct.unpack("<256B", stream.read(256)))
+                blend_indexes.append(indexes)
+            plm_sections["FOG"] = blend_indexes
+        
+        elif sect == "INTE":
+            unknown = struct.unpack("<I", stream.read(4))[0]
+            blend_cnt = struct.unpack("<I", stream.read(4))[0]
+            entry_size = struct.unpack("<I", stream.read(4))[0]
+            blend_indexes = []
+            for i in range(blend_cnt):
+                indexes = list(struct.unpack("<256B", stream.read(256)))
+                blend_indexes.append(indexes)
+            plm_sections["INTE"] = blend_indexes
+        
+        size_left -= (sect_size + 8)
+
+    return plm_sections
 
 
 def palette_to_colors(palette, indexes, trc):
@@ -646,7 +693,7 @@ def truecolor_tga_32_to_txr(filepath, bytes_per_pixel, image_type, image_format,
 
 
 def msk_to_tga32(stream):
-    indexes = []
+    
     colors_after = []
     magic = stream.read(4).decode('cp1251')
     width = struct.unpack("<H", stream.read(2))[0]
@@ -675,7 +722,9 @@ def msk_to_tga32(stream):
     header[9] = height #Height
     header[10] = 32 #PixelDepth
     header[11] = 32 #ImageDescriptor
-
+    
+    pfrm = [63488, 2016, 31, 0] # 5,6,5,0
+    
     while True:
         footer_identifier = stream.read(4).decode('cp1251')
         if footer_identifier == 'PFRM':
@@ -701,7 +750,7 @@ def msk_to_tga32(stream):
         outBuffer.write(header_pack)
         outBuffer.write(colors_pack)
     else: # bytes_per_pixel == 2
-        pfrm = [63488,2016,31,0] # 5,6,5,0
+        # pfrm = [63488,2016,31,0] # 5,6,5,0
         outBuffer = write_tga8888(header, colors, pfrm, transp_color, bytes_per_pixel)
 
     result = {}
