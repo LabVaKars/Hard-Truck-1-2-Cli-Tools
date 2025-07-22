@@ -160,9 +160,9 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                                 for pal_row in op16
                             ]
 
-                            size = 256
+                            size = 1024
                             op16_colors = [
-                                [pal[i:i + size] for i in range(0, len(pal), size)] # split into 128 palettes with length = 256 
+                                [pal[i:i + size] for i in range(0, len(pal), size)] # split into smaller palettes 
                                 for pal_row in op16_colors                          # if multiple palettes in one row, they are joined together
                                 for pal in pal_row
                             ]
@@ -172,7 +172,7 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                             for ind, pal_row in enumerate(op16_colors):
                                 html_data += "let op16_colors{} = {}\n".format(ind, json.dumps(pal_row))
                                 pal_cnt = len(pal_row)
-                                html_js += "app.appendChild({});\n".format("createOPACBody(op16_colors{}, {})".format(ind, pal_cnt))
+                                html_js += "app.appendChild({});\n".format("createOPACBody(op16_colors{}, {}, 32)".format(ind, pal_cnt))
                         
                         if(len(fo16)) > 0: #FO16
                             fo16_colors = [
@@ -180,10 +180,10 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                                 for pal in fo16
                             ]
 
-                            size = 256
+                            size = 1024
                             fo16_colors = [
-                                [pal[i:i + size] for i in range(0, len(pal), size)] # split into 128 palettes with length = 256 
-                                for pal in fo16_colors                          # if multiple palettes in one row, they are joined together
+                                [pal[i:i + size] for i in range(0, len(pal), size)] # split into smaller palettes 
+                                for pal in fo16_colors                              # if multiple palettes in one row, they are joined together
                             ]
 
                             pal_cnt = len(fo16_colors)
@@ -191,7 +191,7 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                             for ind, pal_row in enumerate(fo16_colors):
                                 html_data += "let fo16_colors{} = {}\n".format(ind, json.dumps(pal_row))
                                 pal_cnt = len(pal_row)
-                                html_js += "app.appendChild({});\n".format("createOPACBody(fo16_colors{}, {})".format(ind, pal_cnt))
+                                html_js += "app.appendChild({});\n".format("createOPACBody(fo16_colors{}, {}, 32)".format(ind, pal_cnt))
                         
                         if(len(in16)) > 0: #IN16
                             in16_colors = [
@@ -199,10 +199,10 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                                 for pal in in16
                             ]
 
-                            size = 256
+                            size = 1024
                             in16_colors = [
-                                [pal[i:i + size] for i in range(0, len(pal), size)] # split into 128 palettes with length = 256 
-                                for pal in in16_colors                          # if multiple palettes in one row, they are joined together
+                                [pal[i:i + size] for i in range(0, len(pal), size)] # split into smaller palettes 
+                                for pal in in16_colors                              # if multiple palettes in one row, they are joined together
                             ]
 
                             pal_cnt = len(in16_colors)
@@ -210,7 +210,7 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                             for ind, pal_row in enumerate(in16_colors):
                                 html_data += "let in16_colors{} = {}\n".format(ind, json.dumps(pal_row))
                                 pal_cnt = len(pal_row)
-                                html_js += "app.appendChild({});\n".format("createOPACBody(in16_colors{}, {})".format(ind, pal_cnt))
+                                html_js += "app.appendChild({});\n".format("createOPACBody(in16_colors{}, {}, 32)".format(ind, pal_cnt))
                                 
 
                         debug_path = "{}.html".format(noExtPath)

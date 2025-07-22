@@ -33,10 +33,10 @@ PALETTE_HTML = """
       gap: 2px;
     }
     
-    .sm-palette {
+    .palette32 {
       display: grid;
-      grid-template-columns: repeat(16, 4px);
-      grid-template-rows: repeat(16, 4px);
+      grid-template-columns: repeat(32, 20px);
+      grid-template-rows: repeat(32, 20px);
       gap: 2px;
     }
 
@@ -122,7 +122,7 @@ PALETTE_HTML = """
       return row;
     }
 
-    function createPALTBody(colors) {
+    function createPALTBody(colors, palSide = 16) {
       const row = document.createElement("div");
       row.className = "row";
       const col = document.createElement("div");
@@ -130,15 +130,20 @@ PALETTE_HTML = """
       const box = document.createElement("div");
       box.className = "box";
       const palette = document.createElement("div");
-      palette.className = "palette";
-      createPalette(palette, colors)
+      if(palSide == 16) {
+        palette.className = "palette";
+        createPalette(palette, colors, 16*16)
+      } else if (palSide == 32){
+        palette.className = "palette32";
+        createPalette(palette, colors, 32*32)
+      }
       box.appendChild(palette);
       col.appendChild(box);
       row.appendChild(col);
       return row;
     }
 
-    function createOPACBody(colorsArr, num) {
+    function createOPACBody(colorsArr, num, palSide = 16) {
       const row = document.createElement("div");
       row.className = "row";
       let step = 100/num;
@@ -150,8 +155,13 @@ PALETTE_HTML = """
         const heading = document.createElement("h5");
         heading.innerText = Math.round(i*step) + "%-" + Math.round(i*step+step) + "%"
         const palette = document.createElement("div");
-        palette.className = "palette";
-        createPalette(palette, colorsArr[i])
+        if(palSide == 16) {
+          palette.className = "palette";
+          createPalette(palette, colorsArr[i], 16*16)
+        } else if (palSide == 32){
+          palette.className = "palette32";
+          createPalette(palette, colorsArr[i], 32*32)
+        }
         box.appendChild(palette);
         palette.appendChild(heading);
         col.appendChild(box);
@@ -160,8 +170,7 @@ PALETTE_HTML = """
       return row;
     }
     
-    function createPalette(palDOM, palValues){
-      const totalColors = 256;
+    function createPalette(palDOM, palValues, totalColors){
       for (let i = 0; i < totalColors; i++) {
         const div = document.createElement('div');
         div.className = 'color';
