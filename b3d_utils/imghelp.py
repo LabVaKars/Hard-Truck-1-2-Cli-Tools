@@ -14,18 +14,22 @@ log.setLevel(logging.DEBUG)
 def parse_plm(stream):
 
     magic = stream.read(4).decode("UTF-8")
-    pal_size = struct.unpack("<I", stream.read(4))[0]
-    size_left = pal_size
+    plm_size = struct.unpack("<I", stream.read(4))[0]
+    size_left = plm_size
     plm_sections = {
         "PALT" : [],
         "OPAC": [],
         "FOG": [],
-        "INTE": []
+        "INTE": [],
+        "OP16": [],
+        "FO16": [],
+        "IN16": []
     } 
+
     while(size_left > 0):
-        sect = stream.read(4).decode("UTF-8").strip()
+        sect = stream.read(4).decode("utf-8")
         sect_size = struct.unpack("<I", stream.read(4))[0]
-        
+
         if sect == "PALT":
             colors = []
             for i in range(sect_size // 3):
@@ -72,6 +76,63 @@ def parse_plm(stream):
                 blend_indexes.append(indexes)
             plm_sections["INTE"] = blend_indexes
         
+        elif sect == "OP16": #1555
+            blend_cnt = struct.unpack("<I", stream.read(4))[0]  # 1
+            opac_depth = struct.unpack("<I", stream.read(4))[0] # 1
+            entry_size = struct.unpack("<I", stream.read(4))[0]
+            pal_rows = []
+            for j in range(blend_cnt):
+                pal_indexes = []
+                for i in range(opac_depth):
+                    color_bytes = list(struct.unpack("<32768H", stream.read(65536)))
+                    colors = [{
+                        "r": (c>>7)&0xF8, 
+                        "g": (c>>2)&0xF8, 
+                        "b": (c&0x1F)<<3, 
+                    } for c in color_bytes]
+                    pal_indexes.append(colors)
+                pal_rows.append(pal_indexes)
+            plm_sections["OP16"] = pal_rows
+        
+        elif sect == "FO16": #1555
+            pal_index = struct.unpack("<I", stream.read(4))[0] # 1
+            blend_cnt = struct.unpack("<I", stream.read(4))[0] # 1
+            entry_size = struct.unpack("<I", stream.read(4))[0]
+            
+            pal_colors = []
+            for i in range(blend_cnt):
+                color_bytes = list(struct.unpack("<32768H", stream.read(65536)))
+
+                colors = [{
+                    "r": (c>>7)&0xF8, 
+                    "g": (c>>2)&0xF8, 
+                    "b": (c&0x1F)<<3, 
+                } for c in color_bytes]
+                pal_colors.append(colors)
+
+            plm_sections["FO16"] = pal_colors
+        
+        elif sect == "IN16": #1555
+            unknown = struct.unpack("<I", stream.read(4))[0] # 1
+            blend_cnt = struct.unpack("<I", stream.read(4))[0] # 1
+            entry_size = struct.unpack("<I", stream.read(4))[0]
+            
+            pal_colors = []
+            for i in range(blend_cnt):
+                color_bytes = list(struct.unpack("<32768H", stream.read(65536)))
+
+                colors = [{
+                    "r": (c>>7)&0xF8, 
+                    "g": (c>>2)&0xF8, 
+                    "b": (c&0x1F)<<3, 
+                } for c in color_bytes]
+                pal_colors.append(colors)
+
+            plm_sections["IN16"] = pal_colors
+        
+        else: #skip
+            stream.read(sect_size)
+
         size_left -= (sect_size + 8)
 
     return plm_sections

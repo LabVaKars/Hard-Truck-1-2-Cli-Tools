@@ -98,6 +98,9 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                         opac = palette["OPAC"]
                         fogs = palette["FOG"]
                         inte = palette["INTE"]
+                        op16 = palette["OP16"]
+                        fo16 = palette["FO16"]
+                        in16 = palette["IN16"]
                         # colors_json = json.dumps(opac, indent=2)
                         # with open(outfile_path, "wb") as out_file:
                         #     out_file.write(colors_json.encode('utf-8'))
@@ -147,7 +150,69 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                             html_js += "app.appendChild({});\n".format("createHeading('INTE')")
                             html_data += "let inte_colors = {}\n".format(json.dumps(inte_colors))
                             html_js += "app.appendChild({});\n".format("createOPACBody(inte_colors, {})".format(pal_cnt))
+
+                        if(len(op16)) > 0: #OP16
+                            op16_colors = [
+                                [
+                                    ['#{:02X}{:02X}{:02X}'.format(c['r'], c['g'], c['b']) for c in pal]
+                                    for pal in pal_row
+                                ]
+                                for pal_row in op16
+                            ]
+
+                            size = 256
+                            op16_colors = [
+                                [pal[i:i + size] for i in range(0, len(pal), size)] # split into 128 palettes with length = 256 
+                                for pal_row in op16_colors                          # if multiple palettes in one row, they are joined together
+                                for pal in pal_row
+                            ]
                             
+                            pal_cnt = len(op16_colors)
+                            html_js += "app.appendChild({});\n".format("createHeading('OP16')")
+                            for ind, pal_row in enumerate(op16_colors):
+                                html_data += "let op16_colors{} = {}\n".format(ind, json.dumps(pal_row))
+                                pal_cnt = len(pal_row)
+                                html_js += "app.appendChild({});\n".format("createOPACBody(op16_colors{}, {})".format(ind, pal_cnt))
+                        
+                        if(len(fo16)) > 0: #FO16
+                            fo16_colors = [
+                                ['#{:02X}{:02X}{:02X}'.format(c['r'], c['g'], c['b']) for c in pal]
+                                for pal in fo16
+                            ]
+
+                            size = 256
+                            fo16_colors = [
+                                [pal[i:i + size] for i in range(0, len(pal), size)] # split into 128 palettes with length = 256 
+                                for pal in fo16_colors                          # if multiple palettes in one row, they are joined together
+                            ]
+
+                            pal_cnt = len(fo16_colors)
+                            html_js += "app.appendChild({});\n".format("createHeading('FO16')")
+                            for ind, pal_row in enumerate(fo16_colors):
+                                html_data += "let fo16_colors{} = {}\n".format(ind, json.dumps(pal_row))
+                                pal_cnt = len(pal_row)
+                                html_js += "app.appendChild({});\n".format("createOPACBody(fo16_colors{}, {})".format(ind, pal_cnt))
+                        
+                        if(len(in16)) > 0: #IN16
+                            in16_colors = [
+                                ['#{:02X}{:02X}{:02X}'.format(c['r'], c['g'], c['b']) for c in pal]
+                                for pal in in16
+                            ]
+
+                            size = 256
+                            in16_colors = [
+                                [pal[i:i + size] for i in range(0, len(pal), size)] # split into 128 palettes with length = 256 
+                                for pal in in16_colors                          # if multiple palettes in one row, they are joined together
+                            ]
+
+                            pal_cnt = len(in16_colors)
+                            html_js += "app.appendChild({});\n".format("createHeading('IN16')")
+                            for ind, pal_row in enumerate(in16_colors):
+                                html_data += "let in16_colors{} = {}\n".format(ind, json.dumps(pal_row))
+                                pal_cnt = len(pal_row)
+                                html_js += "app.appendChild({});\n".format("createOPACBody(in16_colors{}, {})".format(ind, pal_cnt))
+                                
+
                         debug_path = "{}.html".format(noExtPath)
                         debug_html = PALETTE_HTML.replace("{data}", html_data).replace("{js}", html_js)
                         with open(debug_path, "wb") as out_file:

@@ -32,10 +32,28 @@ PALETTE_HTML = """
       grid-template-rows: repeat(16, 20px);
       gap: 2px;
     }
+    
+    .sm-palette {
+      display: grid;
+      grid-template-columns: repeat(16, 4px);
+      grid-template-rows: repeat(16, 4px);
+      gap: 2px;
+    }
 
     .color {
       width: 20px;
       height: 20px;
+      font-size: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 0 2px #000;
+      color: #000;
+    }
+    
+    .sm-color {
+      width: 4px;
+      height: 4px;
       font-size: 10px;
       display: flex;
       justify-content: center;
@@ -149,7 +167,23 @@ PALETTE_HTML = """
         div.className = 'color';
         if (i < palValues.length) {
           div.style.backgroundColor = palValues[i];
-          div.textContent = i;
+          //div.textContent = i;
+        } else {
+          div.style.backgroundColor = 'transparent';
+        }
+        
+        palDOM.appendChild(div);
+      }
+    }
+    
+    function createSmPalette(palDOM, palValues){
+      const totalColors = 32768;
+      for (let i = 0; i < totalColors; i++) {
+        const div = document.createElement('div');
+        div.className = 'sm-color';
+        if (i < palValues.length) {
+          div.style.backgroundColor = palValues[i];
+          //div.textContent = i;
         } else {
           div.style.backgroundColor = 'transparent';
         }
