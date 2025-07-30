@@ -221,6 +221,6 @@ elif args.format == 'res':
             
         unpack_res.resunpack(args.i, selected_sections)
         
-    # elif args.command == 'pack':
+    elif args.command == 'pack':
 
-    #     pack_res.respack(args.i, args.o)
+        pack_res.respack(args.i, args.o)

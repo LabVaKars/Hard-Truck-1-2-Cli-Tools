@@ -227,11 +227,11 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                         # save PFRM value
                         pfrm = result['format']
                         if pfrm is not None:
-                            r_unmask = c.unmask_bits(pfrm[0])
-                            g_unmask = c.unmask_bits(pfrm[1])
-                            b_unmask = c.unmask_bits(pfrm[2])
-                            a_unmask = c.unmask_bits(pfrm[3])
-                            pfrm_value = 'PFRM{}{}{}{}'.format(b_unmask.ones, g_unmask.ones, r_unmask.ones, a_unmask.ones)
+                            a_unmask = c.unmask_bits(pfrm[0])
+                            r_unmask = c.unmask_bits(pfrm[1])
+                            g_unmask = c.unmask_bits(pfrm[2])
+                            b_unmask = c.unmask_bits(pfrm[3])
+                            pfrm_value = 'PFRM{}{}{}{}'.format(a_unmask.ones, r_unmask.ones, g_unmask.ones, b_unmask.ones)
                             sectionObj[data_name].append(pfrm_value)
 
                         with open(outfile_path, "wb") as out_file:
@@ -243,7 +243,7 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                             for mipmap_data in result['mipmaps']:
                                 mipmap_path = "{}_{}_{}.tga".format(noExtPath, mipmap_data['w'], mipmap_data['h'])
                                 with open(mipmap_path, "wb") as out_file:
-                                    out_file.write((result['data']).getvalue())
+                                    out_file.write((mipmap_data['data']).getvalue())
                         
                     elif section_name in ['MASKFILES']:
                         outfile_path = "{}.tga".format(noExtPath)
@@ -257,12 +257,13 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                         result = img.msk_to_tga32(rawBuffer)
                         sectionObj[data_name].append(result['magic'])
                         pfrm = result['format']
-                        if pfrm is not None:
-                            r_unmask = c.unmask_bits(pfrm[0])
-                            g_unmask = c.unmask_bits(pfrm[1])
-                            b_unmask = c.unmask_bits(pfrm[2])
-                            a_unmask = c.unmask_bits(pfrm[3])
-                            pfrm_value = 'PFRM{}{}{}{}'.format(b_unmask.ones, g_unmask.ones, r_unmask.ones, a_unmask.ones)
+                        pfrm_set = result['pfrm_set']
+                        if pfrm is not None and pfrm_set:
+                            a_unmask = c.unmask_bits(pfrm[0])
+                            r_unmask = c.unmask_bits(pfrm[1])
+                            g_unmask = c.unmask_bits(pfrm[2])
+                            b_unmask = c.unmask_bits(pfrm[3])
+                            pfrm_value = 'PFRM{}{}{}{}'.format(a_unmask.ones, r_unmask.ones, g_unmask.ones, b_unmask.ones)
                             sectionObj[data_name].append(pfrm_value)
                         with open(outfile_path, "wb") as out_file:
                             out_file.write((result['data']).getvalue())
