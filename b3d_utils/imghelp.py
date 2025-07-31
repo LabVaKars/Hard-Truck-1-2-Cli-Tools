@@ -330,7 +330,6 @@ class Image:
         return f"<Image {self.width}x{self.height} in {self.bit_depth} ({self.order})>"
 
 
-
 def parse_plm(stream):
 
     magic = stream.read(4).decode("UTF-8")
@@ -543,13 +542,15 @@ def decompress_rle(stream, width, height, bytes_per_pixel):
         pixel_count = 0
         decompressed_data = bytearray(width * height * bytes_per_pixel)
         while pixel_count < width * height:
-            raw_bit = stream.read(1)
-            rleBytes += raw_bit
-            curbit = struct.unpack("<B", raw_bit)[0]
+            raw_bits = stream.read(1)
+            rleBytes += raw_bits
+            curbit = struct.unpack("<B", raw_bits)[0]
             if(curbit > 127): #black pixels
                 pixel_count += (curbit-128)
             else: #raw data
-                decompressed_data[pixel_count * bytes_per_pixel:(pixel_count + curbit) * bytes_per_pixel] = stream.read(curbit*bytes_per_pixel)
+                raw_bits = stream.read(curbit*bytes_per_pixel)
+                rleBytes += raw_bits
+                decompressed_data[pixel_count * bytes_per_pixel:(pixel_count + curbit) * bytes_per_pixel] = raw_bits
                 pixel_count += curbit
         
         return {
@@ -583,8 +584,12 @@ def read_lvmp(file, bytes_per_pixel):
     return mipmaps
 
 
-def txr_to_tga32(stream, image_type, tgaDebug):
+def txr_to_tga32(stream, tgaDebug):
     
+    stream.seek(2, 0)
+    image_type = struct.unpack("<B", stream.read(1))[0]
+    stream.seek(0, 0)
+
     og_header = TGAHeader()
     og_header.from_stream(stream)
     if og_header.id_length == 12: #LOFF section
@@ -732,8 +737,36 @@ def txr_to_tga32(stream, image_type, tgaDebug):
 
     return result
 
+def rgb_distance_squared(c1, c2):
+    # Euclidean distance squared (faster than using sqrt)
+    return sum((a - b) ** 2 for a, b in zip(c1, c2))
 
-def generate_palette(colors, width, height, size = 256):
+
+def map_pixels_to_palette(pixels, palette):
+    pixel_index_cache = {}
+    result = []
+
+    for row in pixels:
+        index_row = []
+        for pixel in row:
+            if pixel in pixel_index_cache:
+                best_index = pixel_index_cache[pixel]
+            else:
+                min_dist = float('inf')
+                best_index = 0
+                for i, color in enumerate(palette):
+                    dist = rgb_distance_squared(pixel, color)
+                    if dist < min_dist:
+                        min_dist = dist
+                        best_index = i
+                pixel_index_cache[pixel] = best_index
+            index_row.append(best_index)
+        result.append(index_row)
+
+    return result
+
+
+def generate_palette(colors, size = 256):
     pixel_indexes = {}
 
     # Loop through the image data, counting the occurrence of each pixel value
@@ -830,30 +863,6 @@ def generate_mipmaps(barray, width, height):
     return mipmaps
 
 
-def convert_txr_to_tga32(stream, tgaDebug):
-    image_type = ""
-    stream.seek(2, 0)
-    image_type = struct.unpack("<B", stream.read(1))[0]
-    stream.seek(0, 0)
-    log.debug("Image type: {}".format(image_type))
-    if image_type in [1, 2]: 
-        return txr_to_tga32(stream, image_type, tgaDebug)
-    else:
-        log.error("Unsupported Tga image type: {}".format(image_type))
-    return None
-
-
-def convert_tga32_to_txr(stream, tex_params, tgaDebug):
-
-    image_type = tex_params['img_type']
-
-    if image_type == 'TIMG':
-        return truecolor_tga_32_to_txr(stream, tex_params, tgaDebug)
-        pass
-    elif image_type == 'CMAP':
-        # return colormap_tga_32_to_txr(stream, tex_params, tgaDebug)
-        pass
-
 def get_argb_bit_mask(image_format):
     offset = 0
     bit_masks = []
@@ -873,25 +882,42 @@ def get_argb_bit_mask(image_format):
     return bit_masks[::-1] #reverse
 
 
-def truecolor_tga_32_to_txr(stream, tex_params, tgaDebug):
+def tga32_to_txr(stream, tex_params, tgaDebug):
+
+    image_type = 2 if tex_params['img_type'] == 'TIMG' else 1
 
     image_format = tex_params['pfrm']
     has_pfrm = tex_params['has_pfrm']
     gen_mipmap = tex_params['has_lvmp']
 
-    bytes_per_pixel = 4 # 32 bit ARGB
+    outBuffer = BytesIO()
+
+    og_header = TGAHeader()
+    og_header.from_stream(stream)
+
+    width = og_header.image_width
+    height = og_header.image_height
 
     header = TGAHeader()
-    header.from_stream(stream)
-    header.id_length = 12 #LOFF declaration
-    header.color_map_length = 0 #ColorMapEntrySize
-    header.color_map_entry_size = 16 #ColorMapEntrySize
-    header.pixel_depht = 16 #PixelDepth
+    header.image_type = image_type
     header.image_descriptor = 32 #Image Descriptor
-    width = header.image_width
-    height = header.image_height
+    header.image_width = width
+    header.image_height = height
+
+    if image_type == 2:
+        header.id_length = 12 #LOFF declaration
+        header.color_map_entry_size = 16
+        header.pixel_depht = 16
+
+    else: # image_type = 1
+        header.id_length = 0
+        header.color_map_type = 1
+        header.color_map_length = 256
+        header.color_map_entry_size = 24
+        header.pixel_depht = 8
+
     colors_size = height*width
-    colors_before = stream.read(colors_size*bytes_per_pixel)
+    colors_before = stream.read(colors_size*4)
 
     pixels = Image.decode_bytearray_to_pixels(
         bytearray(colors_before), 
@@ -900,8 +926,94 @@ def truecolor_tga_32_to_txr(stream, tex_params, tgaDebug):
         '8888', 'ARGB'
     )
 
-    img = Image(pixels, header.image_width, header.image_height, 'ARGB', '8888')
-    img_bytes = img.save_bytes(image_format, 'ARGB')
+    if image_type == 2:
+        img = Image(pixels, header.image_width, header.image_height, 'ARGB', '8888')
+        img_bytes = img.save_bytes(image_format, 'ARGB')
+        
+        loff_ms = outBuffer.tell()
+        outBuffer.write(header.to_bytes())
+        outBuffer.write('LOFF'.encode('cp1251'))
+        outBuffer.write(struct.pack("<i",4))
+        loff_write_ms = outBuffer.tell()
+        outBuffer.write(struct.pack("<i",0)) #LOFF reserved
+        outBuffer.write(img_bytes)
+        c.write_size(outBuffer, loff_write_ms, outBuffer.tell() - loff_ms)
+        if gen_mipmap and len(mipmaps) > 1:
+            outBuffer.write('LVMP'.encode('cp1251'))
+            lvmp_write_ms = outBuffer.tell()
+            outBuffer.write(struct.pack("<i",0)) #LVMP reserved
+            lvmp_ms = outBuffer.tell()
+            outBuffer.write(struct.pack("<i", len(mipmaps)-1))
+            outBuffer.write(struct.pack("<i", mipmaps[1]['h']))
+            outBuffer.write(struct.pack("<i", mipmaps[1]['w']))
+            outBuffer.write(struct.pack("<i", 2))
+
+            for m in range(1, len(mipmaps)):
+                mipmap = mipmaps[m]['data']
+                m_width = mipmaps[m]['w'] # len(mipmap)
+                m_height = mipmaps[m]['h'] # len(mipmap[0])
+                mipmap_bytearray = bytearray(m_height * m_width * 4)
+                for x in range(m_width):
+                    for y in range(m_height): #BGRA
+                        mipmap_bytearray[(x*m_width+y)*4:(x*m_width+y+1)*4] = struct.pack('>I', \
+                            ((mipmap[x][y][0]) << 8) | \
+                            ((mipmap[x][y][1]) << 16) | \
+                            ((mipmap[x][y][2]) << 24) | \
+                            ((mipmap[x][y][3]) << 0)  \
+                        )
+
+                mipmap_header = copy.copy(header)
+                mipmap_header.id_length = 0
+                mipmap_header.image_width = m_width
+                mipmap_header.image_height = m_height
+
+                mipmap_pixels = Image.decode_bytearray_to_pixels(
+                    mipmap_bytearray, 
+                    mipmap_header.image_width,
+                    mipmap_header.image_height,
+                    '8888', 'RGBA'
+                )
+
+                img = Image(mipmap_pixels, mipmap_header.image_width, mipmap_header.image_height, 'ARGB', '8888')
+                mipmap_bytes = img.save_bytes(image_format, 'ARGB')
+                # mipmap_bytes = img.save_bytes('5551', 'RGBA')
+
+                outBuffer.write(mipmap_bytes)
+            c.write_size(outBuffer, lvmp_write_ms, outBuffer.tell() - lvmp_ms)
+            outBuffer.write(struct.pack("<H", 0)) # allign
+
+        if has_pfrm:
+            bit_masks = get_argb_bit_mask(image_format)
+
+            a_msk = bit_masks[0]
+            r_msk = bit_masks[1]
+            g_msk = bit_masks[2]
+            b_msk = bit_masks[3]
+
+            outBuffer.write('PFRM'.encode('cp1251'))
+            outBuffer.write(struct.pack('<i', 16))
+            outBuffer.write(struct.pack('<i', r_msk))
+            outBuffer.write(struct.pack('<i', g_msk))
+            outBuffer.write(struct.pack('<i', b_msk))
+            outBuffer.write(struct.pack('<i', a_msk))
+
+        outBuffer.write('ENDR'.encode('cp1251'))
+        outBuffer.write(struct.pack("<i", 0)) # always int 0
+
+    else: # image_type == 1
+        palette = [(p[2], p[1], p[0]) for p in tex_params['palette']] # reverse channels?
+        indexes = map_pixels_to_palette(pixels, palette)
+        # pal = generate_palette(pixels)
+        # palette = pal['palette']
+        # indexes = pal['indexes']
+
+        packed_palette = b''.join(struct.pack('BBB', *pixel) for pixel in palette)
+        # packed_palette = b''.join(struct.pack('BBB', *(0,0,0)) for pixel in palette)
+        packed_colors = b''.join(struct.pack('B', ind) for row in indexes for ind in row)
+
+        outBuffer.write(header.to_bytes())
+        outBuffer.write(packed_palette)
+        outBuffer.write(packed_colors)
 
     if gen_mipmap:
         mipmaps = generate_mipmaps(bytearray(colors_before), width, height)
@@ -911,88 +1023,28 @@ def truecolor_tga_32_to_txr(stream, tex_params, tgaDebug):
     if tgaDebug:
         debugBuffer = BytesIO()
         debug_header = TGAHeader()
-        debug_header.image_type = 2
-        debug_header.color_map_entry_size = 16
-        debug_header.pixel_depht = 16
-        debug_header.image_width = header.image_width
-        debug_header.image_height = header.image_height
+        debug_header.image_type = image_type
+        debug_header.image_width = og_header.image_width
+        debug_header.image_height = og_header.image_height
         debug_header.image_descriptor = 32
 
-        debugBuffer.write(debug_header.to_bytes())
-        debugBuffer.write(img_bytes)
+        if image_type == 2:
+            debug_header.color_map_entry_size = 16
+            debug_header.pixel_depht = 16
 
-    outBuffer = BytesIO()
+            debugBuffer.write(debug_header.to_bytes())
+            debugBuffer.write(img_bytes)
 
-    loff_ms = outBuffer.tell()
-    outBuffer.write(header.to_bytes())
-    outBuffer.write('LOFF'.encode('cp1251'))
-    outBuffer.write(struct.pack("<i",4))
-    loff_write_ms = outBuffer.tell()
-    outBuffer.write(struct.pack("<i",0)) #LOFF reserved
-    outBuffer.write(img_bytes)
-    c.write_size(outBuffer, loff_write_ms, outBuffer.tell() - loff_ms)
-    if gen_mipmap and len(mipmaps) > 1:
-        outBuffer.write('LVMP'.encode('cp1251'))
-        lvmp_write_ms = outBuffer.tell()
-        outBuffer.write(struct.pack("<i",0)) #LVMP reserved
-        lvmp_ms = outBuffer.tell()
-        outBuffer.write(struct.pack("<i", len(mipmaps)-1))
-        outBuffer.write(struct.pack("<i", mipmaps[1]['h']))
-        outBuffer.write(struct.pack("<i", mipmaps[1]['w']))
-        outBuffer.write(struct.pack("<i", 2))
+        else: # image_type = 1
+            debug_header.color_map_type = 1
+            debug_header.color_map_length = 256
+            debug_header.color_map_entry_size = 24
+            debug_header.pixel_depht = 8
 
-        for m in range(1, len(mipmaps)):
-            mipmap = mipmaps[m]['data']
-            m_width = mipmaps[m]['w'] # len(mipmap)
-            m_height = mipmaps[m]['h'] # len(mipmap[0])
-            mipmap_bytearray = bytearray(m_height * m_width * 4)
-            for x in range(m_width):
-                for y in range(m_height): #BGRA
-                    mipmap_bytearray[(x*m_width+y)*4:(x*m_width+y+1)*4] = struct.pack('>I', \
-                        ((mipmap[x][y][0]) << 8) | \
-                        ((mipmap[x][y][1]) << 16) | \
-                        ((mipmap[x][y][2]) << 24) | \
-                        ((mipmap[x][y][3]) << 0)  \
-                    )
-
-            mipmap_header = copy.copy(header)
-            mipmap_header.id_length = 0
-            mipmap_header.image_width = m_width
-            mipmap_header.image_height = m_height
-
-            mipmap_pixels = Image.decode_bytearray_to_pixels(
-                mipmap_bytearray, 
-                mipmap_header.image_width,
-                mipmap_header.image_height,
-                '8888', 'RGBA'
-            )
-
-            img = Image(mipmap_pixels, mipmap_header.image_width, mipmap_header.image_height, 'ARGB', '8888')
-            mipmap_bytes = img.save_bytes(image_format, 'ARGB')
-            # mipmap_bytes = img.save_bytes('1555', 'ARGB')
-
-            outBuffer.write(mipmap_bytes)
-        c.write_size(outBuffer, lvmp_write_ms, outBuffer.tell() - lvmp_ms)
-        outBuffer.write(struct.pack("<H", 0)) # allign
-
-    if has_pfrm:
-        bit_masks = get_argb_bit_mask(image_format)
-
-        a_msk = bit_masks[0]
-        r_msk = bit_masks[1]
-        g_msk = bit_masks[2]
-        b_msk = bit_masks[3]
-
-        outBuffer.write('PFRM'.encode('cp1251'))
-        outBuffer.write(struct.pack('<i', 16))
-        outBuffer.write(struct.pack('<i', r_msk))
-        outBuffer.write(struct.pack('<i', g_msk))
-        outBuffer.write(struct.pack('<i', b_msk))
-        outBuffer.write(struct.pack('<i', a_msk))
-
-    outBuffer.write('ENDR'.encode('cp1251'))
-    outBuffer.write(struct.pack("<i", 0)) # always int 0
-
+            debugBuffer.write(header.to_bytes())
+            debugBuffer.write(packed_palette)
+            debugBuffer.write(packed_colors)
+    
     result = {
         "data": outBuffer,
         "debug_data": debugBuffer if tgaDebug else None
@@ -1003,7 +1055,6 @@ def truecolor_tga_32_to_txr(stream, tex_params, tgaDebug):
 def tga32_to_msk(stream, msk_params, tgaDebug = False):
 
     msk_type = msk_params['magic']
-    print(msk_type)
     has_pfrm = msk_params['has_pfrm']
     image_format = msk_params['pfrm']
 
@@ -1034,17 +1085,22 @@ def tga32_to_msk(stream, msk_params, tgaDebug = False):
     if bytes_per_pixel == 2:
         palette = [(0,0,0) for _ in range(256)]
     else:
-        pal = generate_palette(pixels, width, height)
-        palette = pal['palette']
-        indexes = pal['indexes']
+        palette = [(p[2], p[1], p[0]) for p in msk_params['palette']] # reverse channels?
+        indexes = map_pixels_to_palette(pixels, msk_params['palette'])
+
+        # pal = generate_palette(pixels)
+        # palette = pal['palette']
+        # indexes = pal['indexes']
 
     if bytes_per_pixel == 2:
         img = Image(pixels, width, height, 'ARGB', '8888')
         new_image_pixels = img.save_as(image_format, 'ARGB')
+        # new_image_pixels = img.save_as('1555', 'ARGB')
 
         compressed_data = compress_rle(new_image_pixels, bytes_per_pixel)
     else:
-        compressed_data = compress_rle(indexes, 1)
+        flat_indexes = [[ind for row in indexes for ind in row]]
+        compressed_data = compress_rle(flat_indexes, 1)
 
     packed_palette = b''.join(struct.pack('BBB', *pixel) for pixel in palette)
 
@@ -1072,8 +1128,8 @@ def tga32_to_msk(stream, msk_params, tgaDebug = False):
     outBuffer = BytesIO()
 
     outBuffer.write(msk_type.encode('cp1251'))
-    outBuffer.write(struct.pack("<I", width))
-    outBuffer.write(struct.pack("<I", height))
+    outBuffer.write(struct.pack("<H", width))
+    outBuffer.write(struct.pack("<H", height))
     outBuffer.write(packed_palette)
 
     outBuffer.write(compressed_data)

@@ -30,8 +30,8 @@ def respack(resDirpath, outFilepath, tgaDebug):
         "PALETTEFILES": None,
         "SOUNDFILES": None,
         "BACKFILES": None,
-        "MASKFILES": None,
         "TEXTUREFILES": None,
+        "MASKFILES": None,
         "COLORS": None,
         "MATERIALS": None,
         "SOUNDS": None
@@ -49,6 +49,8 @@ def respack(resDirpath, outFilepath, tgaDebug):
     }
 
     outBuffer = BytesIO()    
+
+    palette_colors = None
 
     for section_name, section in sections.items():
         sectionFolder = os.path.join(resDirpath, section_name)
@@ -72,6 +74,10 @@ def respack(resDirpath, outFilepath, tgaDebug):
                     for entry_key, entry_value in cur_section.items():
                         c.write_cstring(outBuffer, entry_key)
                         val = entry_value.getvalue()
+                        if section_name in ['PALETTEFILES']: 
+                            palette = img.parse_plm(entry_value)
+                            palette_colors = [(c['r'], c['g'], c['b']) for c in palette["PALT"]]
+                                
                         val_size = len(val)
                         outBuffer.write(struct.pack('<I', val_size))
                         outBuffer.write(val)
@@ -98,11 +104,12 @@ def respack(resDirpath, outFilepath, tgaDebug):
                             entryBuffer = BytesIO(file.read())
                         
                         msk_params = parse_msk_params(entry_value)
+                        msk_params['palette'] = palette_colors
 
                         result = img.tga32_to_msk(entryBuffer, msk_params, tgaDebug)
 
                         if result['debug_data'] is not None:
-                            c.write_debug_tga(sectionFolder, noExtPath, result['debug_data'])
+                            c.write_debug_tga(sectionFolder, "debug_pack", noExtPath, result['debug_data'])
 
                         cur_section[entry_key] = result["data"]
                         cur_section_params[entry_key] = msk_params
@@ -125,17 +132,19 @@ def respack(resDirpath, outFilepath, tgaDebug):
                     cur_section_params = {}
                     for entry_key, entry_value in section_meta.items():
                         entryBuffer = BytesIO()
+                        log.info(entry_key)
                         noExtPath = os.path.splitext(entry_key)[0]
                         filename = os.path.join(sectionFolder, "{}.tga".format(noExtPath))
                         with open(filename, 'rb') as file:
                             entryBuffer = BytesIO(file.read())
                         
                         tex_params = parse_tex_params(entry_value)
+                        tex_params['palette'] = palette_colors
 
-                        result = img.convert_tga32_to_txr(entryBuffer, tex_params, tgaDebug)
+                        result = img.tga32_to_txr(entryBuffer, tex_params, tgaDebug)
                         
                         if result['debug_data'] is not None:
-                            c.write_debug_tga(sectionFolder, noExtPath, result['debug_data'])
+                            c.write_debug_tga(sectionFolder, "debug_pack", noExtPath, result['debug_data'])
                         
                         cur_section[entry_key] = result["data"]
                         cur_section_params[entry_key] = tex_params

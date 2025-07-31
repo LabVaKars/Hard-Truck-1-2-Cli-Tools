@@ -222,10 +222,11 @@ def resunpack(resFilepath, selected_sections, tgaDebug, saveTxrMsk = False):
    
                     elif section_name in ['TEXTUREFILES', 'BACKFILES']:
                         outfile_path = "{}.tga".format(noExtPath)
-                        result = img.convert_txr_to_tga32(rawBuffer, tgaDebug)
+                        result = img.txr_to_tga32(rawBuffer, tgaDebug)
+                        log.info(outfile_path)
 
                         if result['debug_data'] is not None:
-                            c.write_debug_tga(sectionFolder, noExt, result['debug_data'])
+                            c.write_debug_tga(sectionFolder, "debug_unpack", noExt, result['debug_data'])
 
                         # save PFRM value
                         pfrm = result['format']
@@ -259,11 +260,12 @@ def resunpack(resFilepath, selected_sections, tgaDebug, saveTxrMsk = False):
                         #     pfrm = [63488, 2016, 31, 0] # 5,6,5,0
                         # else: # m16 and others
                         #     pfrm = [63488, 2016, 31, 0] # 5,6,5,0
+                        log.info(outfile_path)
                         
                         result = img.msk_to_tga32(rawBuffer, tgaDebug)
 
                         if result['debug_data'] is not None:
-                            c.write_debug_tga(sectionFolder, noExt, result['debug_data'])
+                            c.write_debug_tga(sectionFolder, "debug_unpack", noExt, result['debug_data'])
                         
                         sectionObj[data_name].append(result['magic'])
                         pfrm = result['format']

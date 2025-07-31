@@ -188,9 +188,9 @@ def create_missing_folders(filepath):
         binfile_base = Path(binfile_base)
         binfile_base.mkdir(exist_ok=True, parents=True)
 
-def write_debug_tga(sectionFolder, filepath, debug_data):
+def write_debug_tga(sectionFolder, debugFolderName, filepath, debug_data):
     no_ext = os.path.splitext(filepath)[0]
-    debugFolder = os.path.join(sectionFolder, "debug")
+    debugFolder = os.path.join(sectionFolder, debugFolderName)
     
     if not os.path.exists(debugFolder):
         os.makedirs(debugFolder)
