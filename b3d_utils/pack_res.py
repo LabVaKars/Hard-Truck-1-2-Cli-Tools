@@ -14,12 +14,12 @@ import common as c
 from consts import SECTIONS
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-log = logging.getLogger("remove_b3d")
+log = logging.getLogger("pack_res")
 log.setLevel(logging.DEBUG)
 
 
 
-def respack(resDirpath, outFilepath):
+def respack(resDirpath, outFilepath, tgaDebug):
     # read_from_stream = None
     # with open(resFilepath, 'rb') as file:
     #     read_from_stream = BytesIO(file.read())
@@ -91,15 +91,30 @@ def respack(resDirpath, outFilepath):
                     cur_section_params = {}
                     for entry_key, entry_value in section_meta.items():
                         entryBuffer = BytesIO()
-                        filename = os.path.join(sectionFolder, entry_key)
+                        log.info(entry_key)
+                        noExtPath = os.path.splitext(entry_key)[0]
+                        filename = os.path.join(sectionFolder, "{}.tga".format(noExtPath))
                         with open(filename, 'rb') as file:
                             entryBuffer = BytesIO(file.read())
-                            cur_section[entry_key] = entryBuffer
-                        cur_section_params = parse_msk_params(entry_value)
+                        
+                        msk_params = parse_msk_params(entry_value)
+
+                        result = img.tga32_to_msk(entryBuffer, msk_params, tgaDebug)
+
+                        if result['debug_data'] is not None:
+                            c.write_debug_tga(sectionFolder, noExtPath, result['debug_data'])
+
+                        cur_section[entry_key] = result["data"]
+                        cur_section_params[entry_key] = msk_params
                     
                     c.write_cstring(outBuffer, "{} {}".format(section_name, len(cur_section.keys())))
                     for entry_key, entry_value in cur_section.items():
-                        c.write_cstring(outBuffer, entry_key)
+                        params = cur_section_params[entry_key]
+                        if len(params['other']) > 0:
+                            params_str = " ".join(params['other'])
+                            c.write_cstring(outBuffer, "{} {}".format(entry_key, params_str))
+                        else:
+                            c.write_cstring(outBuffer, entry_key)
                         val = entry_value.getvalue()
                         val_size = len(val)
                         outBuffer.write(struct.pack('<I', val_size))
@@ -110,16 +125,19 @@ def respack(resDirpath, outFilepath):
                     cur_section_params = {}
                     for entry_key, entry_value in section_meta.items():
                         entryBuffer = BytesIO()
-                        no_ext = os.path.splitext(entry_key)[0]
-                        filename = os.path.join(sectionFolder, "{}.tga".format(no_ext))
+                        noExtPath = os.path.splitext(entry_key)[0]
+                        filename = os.path.join(sectionFolder, "{}.tga".format(noExtPath))
                         with open(filename, 'rb') as file:
                             entryBuffer = BytesIO(file.read())
                         
                         tex_params = parse_tex_params(entry_value)
 
-                        res = img.convert_tga32_to_txr(entryBuffer, 2, 'TRUECOLOR', tex_params['pfrm'], tex_params['lvmp'])
+                        result = img.convert_tga32_to_txr(entryBuffer, tex_params, tgaDebug)
                         
-                        cur_section[entry_key] = res["data"]
+                        if result['debug_data'] is not None:
+                            c.write_debug_tga(sectionFolder, noExtPath, result['debug_data'])
+                        
+                        cur_section[entry_key] = result["data"]
                         cur_section_params[entry_key] = tex_params
                     
                     c.write_cstring(outBuffer, "{} {}".format(section_name, len(cur_section.keys())))
@@ -150,9 +168,11 @@ def respack(resDirpath, outFilepath):
     with open(outFilepath, 'wb') as file:
         file.write(outBuffer.getvalue())
 
+
 def parse_msk_params(paramStr):
     result = {
         'pfrm': None,
+        'has_pfrm': False,
         'magic': None,
         'other': []
     }
@@ -165,15 +185,21 @@ def parse_msk_params(paramStr):
             result['magic'] = param[0:4]
         
         else:
-            result['other'] = param
+            result['other'].append(param)
     
+    if result['pfrm'] is not None:
+        result['has_pfrm'] = True
+    else:
+        result['pfrm'] = '0565'
+
     return result
 
 def parse_tex_params(paramStr):
     result = {
-        'lvmp': False,
+        'img_type': 'TIMG',
+        'has_lvmp': False,
         'pfrm': None,
-        # 'type': None,
+        'has_pfrm': False,
         'other': []
     }
     paramArr = paramStr.split(' ')
@@ -182,9 +208,17 @@ def parse_tex_params(paramStr):
             result['pfrm'] = param[4:8]
         
         elif param[0:4] == 'LVMP':
-            result['lvmp'] = True
+            result['has_lvmp'] = True
+
+        elif param[0:4] == 'CMAP':
+            result['img_type'] = 'CMAP'
                 
         else:
             result['other'].append(param)
     
+    if result['pfrm'] is not None:
+        result['has_pfrm'] = True
+    else:
+        result['pfrm'] = '0565'
+
     return result

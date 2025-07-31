@@ -95,10 +95,12 @@ remove_parser.add_argument('--rem-sounds', type = parse_items, help="Sound name 
 unpack_parser = subparser.add_parser("unpack", help="Unpack selected res file")
 unpack_parser.add_argument('--i', help="Path to res file", required=True)
 unpack_parser.add_argument('--sections', help="List of sections to include. All included by default", nargs="+", choices=SECTIONS)
+unpack_parser.add_argument('--tga-debug', action='store_true', help="Save TGA files for debugging. If not set, TGA files are not saved")
 
 pack_parser = subparser.add_parser("pack", help="Unpack selected res file")
 pack_parser.add_argument('--i', help="Path to unpacked res folder", required=True)
 pack_parser.add_argument('--o', help="Path to output res file. If not set, input folder name is used")
+pack_parser.add_argument('--tga-debug', action='store_true', help="Save TGA files for debugging. If not set, TGA files are not saved")
 
 #b3d utils
 b3d_parser = format_subparser.add_parser("b3d", help="Commands to work with .b3d files")
@@ -219,8 +221,8 @@ elif args.format == 'res':
         else:
             selected_sections = SECTIONS
             
-        unpack_res.resunpack(args.i, selected_sections)
+        unpack_res.resunpack(args.i, selected_sections, args.tga_debug)
         
     elif args.command == 'pack':
 
-        pack_res.respack(args.i, args.o)
+        pack_res.respack(args.i, args.o, args.tga_debug)

@@ -15,7 +15,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger("unpack_res")
 log.setLevel(logging.DEBUG)
 
-def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
+def resunpack(resFilepath, selected_sections, tgaDebug, saveTxrMsk = False):
     
     read_from_stream = None
     with open(resFilepath, 'rb') as file:
@@ -51,9 +51,10 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
             sectionFolder = os.path.join(unpackDir, section_name)
             if section_name in ["COLORS", "MATERIALS", "SOUNDS"]: # save only .txt
                 binfile_path = os.path.join(sectionFolder, "{}.txt".format(section_name))
-                binfile_base = os.path.dirname(binfile_path)
-                binfile_base = Path(binfile_base)
-                binfile_base.mkdir(exist_ok=True, parents=True)
+                c.create_missing_folders(binfile_path)
+                # binfile_base = os.path.dirname(binfile_path)
+                # binfile_base = Path(binfile_base)
+                # binfile_base.mkdir(exist_ok=True, parents=True)
                 outBuffer = BytesIO()
                 if section_name in ["COLORS"]:
                     outputArr = []
@@ -76,9 +77,10 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                 sectionObj = {}
                 for data_name, data in section['metadata'].items():
                     binfile_path = os.path.join(sectionFolder, data_name)
-                    binfile_base = os.path.dirname(binfile_path)
-                    binfile_base = Path(binfile_base)
-                    binfile_base.mkdir(exist_ok=True, parents=True)
+                    # binfile_base = os.path.dirname(binfile_path)
+                    # binfile_base = Path(binfile_base)
+                    # binfile_base.mkdir(exist_ok=True, parents=True)
+                    c.create_missing_folders(binfile_path)
                     read_from_stream.seek(data["start"],0)
                     outBuffer = BytesIO(read_from_stream.read(data["size"])) 
                     outBuffer.seek(0,0) 
@@ -89,8 +91,8 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                     if section_name not in ['TEXTUREFILES', 'MASKFILES'] or (saveTxrMsk and section_name in ['TEXTUREFILES', 'MASKFILES']):
                         with open(binfile_path, "wb") as out_file:
                             out_file.write(rawBuffer.getvalue())
-                    
-                    noExtPath = os.path.join(sectionFolder, os.path.splitext(data_name)[0])
+                    noExt = os.path.splitext(data_name)[0]
+                    noExtPath = os.path.join(sectionFolder, noExt)
                     if section_name in ['PALETTEFILES']:
                         outfile_path = "{}.txt".format(noExtPath)
                         palette = img.parse_plm(rawBuffer)
@@ -217,12 +219,13 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                         debug_html = PALETTE_HTML.replace("{data}", html_data).replace("{js}", html_js)
                         with open(debug_path, "wb") as out_file:
                             out_file.write(debug_html.encode('utf-8'))
-
-                    
+   
                     elif section_name in ['TEXTUREFILES', 'BACKFILES']:
-                        transp_color = [0, 0, 0]
                         outfile_path = "{}.tga".format(noExtPath)
-                        result = img.convert_txr_to_tga32(rawBuffer, transp_color)
+                        result = img.convert_txr_to_tga32(rawBuffer, tgaDebug)
+
+                        if result['debug_data'] is not None:
+                            c.write_debug_tga(sectionFolder, noExt, result['debug_data'])
 
                         # save PFRM value
                         pfrm = result['format']
@@ -244,6 +247,9 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                                 mipmap_path = "{}_{}_{}.tga".format(noExtPath, mipmap_data['w'], mipmap_data['h'])
                                 with open(mipmap_path, "wb") as out_file:
                                     out_file.write((mipmap_data['data']).getvalue())
+                        if result['img_type'] == 'CMAP':
+                            sectionObj[data_name].append('CMAP')
+                            # TIMG will be default, so can be skipped
                         
                     elif section_name in ['MASKFILES']:
                         outfile_path = "{}.tga".format(noExtPath)
@@ -254,7 +260,11 @@ def resunpack(resFilepath, selected_sections, saveTxrMsk = False):
                         # else: # m16 and others
                         #     pfrm = [63488, 2016, 31, 0] # 5,6,5,0
                         
-                        result = img.msk_to_tga32(rawBuffer)
+                        result = img.msk_to_tga32(rawBuffer, tgaDebug)
+
+                        if result['debug_data'] is not None:
+                            c.write_debug_tga(sectionFolder, noExt, result['debug_data'])
+                        
                         sectionObj[data_name].append(result['magic'])
                         pfrm = result['format']
                         pfrm_set = result['pfrm_set']
