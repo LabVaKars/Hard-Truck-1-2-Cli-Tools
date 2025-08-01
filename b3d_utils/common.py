@@ -1,5 +1,7 @@
 import struct
 import fnmatch
+import os
+from pathlib import Path
 from io import BytesIO
 
 import parsing.read_b3d as b3dr
@@ -179,6 +181,24 @@ def write_output_b3d(all_roots, all_roots_order, material_list):
     write_size(outBuffer, ms_nodes_size, cp_eof - cp_nodes)
 
     return outBuffer
+
+def create_missing_folders(filepath):
+    binfile_base = os.path.dirname(filepath)
+    if not os.path.exists(binfile_base):
+        binfile_base = Path(binfile_base)
+        binfile_base.mkdir(exist_ok=True, parents=True)
+
+def write_debug_tga(sectionFolder, debugFolderName, filepath, debug_data):
+    no_ext = os.path.splitext(filepath)[0]
+    debugFolder = os.path.join(sectionFolder, debugFolderName)
+    
+    if not os.path.exists(debugFolder):
+        os.makedirs(debugFolder)
+    filename = os.path.join(debugFolder, "{}.tga".format(no_ext))
+    
+    create_missing_folders(filename)
+    with open(filename, 'wb') as file:
+        file.write(debug_data.getvalue())
 
 def write_matching_records(read_from_stream, selected_sections, section_records, toReverse):
     section = None
