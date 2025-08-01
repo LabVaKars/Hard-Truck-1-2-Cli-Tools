@@ -45,7 +45,6 @@ def resunpack(resFilepath, outFolderpath, selected_sections, tgaDebug, saveTxrMs
     if outFolderpath is None:
         unpackDir = os.path.join(os.path.dirname(resFilepath), "{}_unpack".format(resFilename))
     
-    print(unpackDir)
     if not os.path.exists(unpackDir):
         os.mkdir(unpackDir)
 

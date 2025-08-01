@@ -297,6 +297,7 @@ def write_matching_records(read_from_stream, selected_sections, section_records,
 
     mat_stream.seek(0,0)
     materials = res.parse_materials(mat_stream, mat_section['cnt'])
+    matching_materials = {}
     if (matching_records["MATERIALS"] is not None and len(matching_records["MATERIALS"]) > 0):
         new_matching_records = set(matching_records["MATERIALS"])
         par_references = {}
@@ -318,11 +319,15 @@ def write_matching_records(read_from_stream, selected_sections, section_records,
                 new_matching_records |= set(par_references[mat_name])
             
         matching_records["MATERIALS"] = sorted(list(new_matching_records))
-            
+        matching_materials = {mat_name:materials[mat_name] for mat_name in matching_records["MATERIALS"]}
+    
+    elif section_records['MATERIALS'] is None:
+        matching_records['MATERIALS'] = mat_section['metadata_order']
         matching_materials = {mat_name:materials[mat_name] for mat_name in matching_records["MATERIALS"]}
 
 
-    if section_records['TEXTUREFILES'] == 'REF':
+
+    if section_records['TEXTUREFILES'] == 'REF' and len(matching_materials.values()) > 0:
         tex_indexes = set((int(res.get_tex(mat))-1 for mat in matching_materials.values() if res.get_tex(mat)>-1)) \
                     | set((int(res.get_ttx(mat))-1 for mat in matching_materials.values() if res.get_ttx(mat)>-1)) \
                     | set((int(res.get_itx(mat))-1 for mat in matching_materials.values() if res.get_itx(mat)>-1))
@@ -333,7 +338,7 @@ def write_matching_records(read_from_stream, selected_sections, section_records,
         matching_records['TEXTUREFILES'] = tex_section['metadata_order']
     
 
-    if section_records['MASKFILES'] == 'REF':
+    if section_records['MASKFILES'] == 'REF' and len(matching_materials.values()) > 0:
         msk_indexes = set((int(res.get_msk(mat))-1 for mat in matching_materials.values() if res.get_msk(mat)>-1))
         msk_names = msk_section['metadata_order']
         used_names = [msk_names[i] for i in msk_indexes]
@@ -410,17 +415,10 @@ def write_matching_records(read_from_stream, selected_sections, section_records,
                 new_mat_indexes = {f:(i+1) for i, f in enumerate(out_records['MATERIALS'])}
                 mat_index_mapping = {og_mat_indexes[k]: new_mat_indexes[k] for k in og_mat_indexes if k in new_mat_indexes}            
                 
-                # print(og_mat_indexes)
-                # print(new_mat_indexes)
-                # print(mat_index_mapping)
-
                 if(not ignore_tex):
                     og_tex_indexes = {f:i for i, f in enumerate(tex_section['metadata_order'])}
                     new_tex_indexes = {f:(i+1) for i, f in enumerate(out_records['TEXTUREFILES'])}
                     tex_index_mapping = {og_tex_indexes[k]: new_tex_indexes[k] for k in og_tex_indexes if k in new_tex_indexes}            
-                    print(og_tex_indexes)
-                    print(new_tex_indexes)
-                    print(tex_index_mapping)
                     
                 if(not ignore_msk):
                     og_msk_indexes = {f:i for i, f in enumerate(msk_section['metadata_order'])}
