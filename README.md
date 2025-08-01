@@ -1,5 +1,5 @@
 # Hard-Truck-1-2-Cli-Tools
-Набор Python скриптов для работы с форматами из Hard Truck: Road to Victory и Hard Truck 2, собранные вместе в b3d_tools/b3d_cli.py
+Набор Python скриптов для работы с форматами из Hard Truck: Road to Victory и Hard Truck 2, собранные вместе в b3d_utils/b3d_cli.py
 
 Доступны следующие команды:
 * Разбиение b3d на подфайлы. Вывод выбранных нод в отдельный файл. (**b3d extract**)
@@ -14,12 +14,51 @@
 Больше информации о форматах:
 https://rernr.github.io/RNRDocs/docs/b3D-File-Format/
 
+Полезные утилиты для анализа:
+https://github.com/reRNR/RNRFileFormats 
+
+## Упаковка и распаковка
+
+При распаковке создаётся файл с метаданными выбранной секции(TEXTUREFILES.txt, MASKFILES.txt и т.д.) 
+
+### MASKFILES
+Файл в формате JSON, где ключ - путь к файлу, а значение набор 
+параметров файла. Краткое описание параметров:
+* noload - внутриигровой параметр.
+* MASK, MSK8, MS16, MSKR - внутриигровой параметр. Влияет на формат в котором будет сохранён MASKFILE. MS16 - 16-bit trueimage RLE-encoded TGA. MASK, MSK8, MSKR - 8-bit Colormapped rle-encoded TGA.
+
+### TEXTUREFILES
+Файл в формате JSON, где ключ - путь к файлу, а значение набор 
+параметров файла. Краткое описание параметров:
+* noload - внутриигровой параметр.
+* memfix - внутриигровой параметр.
+* CMAP, TIMG - кастомный параметр. Влияет на формат в котором будет сохранён TEXTUREFILE. TIMG - 16-bit trueimage TGA. CMAP - 8-bit Colormapped TGA.
+* LVMP - внутриигровой параметр. При наличии, генерирует mipmap-изображения.
+* PFRMxxxx - внутриигровой параметр. xxxx - текстовое представление количества битов на каждый цвет + альфа. Хранится в порядке ARGB.Возможные значения PFRM0565, PFRM4444, PFRM1555.
+* Прочие параметры(если присутсвуют при распаковке) - внутриигровые параметры. Их назначение неизвестно.
+
+### PALETTEFILES
+Файл в формате JSON, где ключ - путь к файлу.
+
+### SOUNDFILES
+Файл в формате JSON, где ключ - путь к файлу.
+
+### MATERIALS
+Файл в формате JSON, где ключ - путь к файлу, а значение - параметры материала. [Подробнее](https://rernr.github.io/RNRDocs/docs/RES-RMP-File-Format#37-%D1%81%D0%B5%D0%BA%D1%86%D0%B8%D1%8F-materials)
+
+### SOUNDS
+Файл в формате JSON, где ключ - путь к файлу, а значение - индекс из SOUNFILES(нумеруется с 1)
+
+### COLORS
+Файл в формате JSON. Массив с значениями.
+
 ### Благодарности
 -  [Voron295](https://github.com/Voron295)
 -  [AlexKimov](https://github.com/AlexKimov)
 -  [aleko2144](https://github.com/aleko2144)
 -  [link](https://github.com/Duude92)
 
+ [Текущие планы](https://github.com/users/LabVaKars/projects/4)
 
 ---
 # Command list
