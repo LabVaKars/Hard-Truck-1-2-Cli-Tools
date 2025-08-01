@@ -471,6 +471,31 @@ def palette_to_colors(palette, indexes, trc):
         colors.extend([b, g, r, a])
     return colors
 
+def compress_msk(pixels):
+    encoded = []
+    for row in pixels:
+        i = 0
+        while i < len(row):
+            # Try to compress black pixels
+            if row[i] == 0:
+                count = 0
+                while i + count < len(row) and row[i + count] == 0 and count < 127:
+                    count += 1
+                encoded.append(128 + count)
+                i += count
+            else:
+                # Collect raw (non-black or mixed) bytes
+                start = i
+                count = 0
+                while i < len(row) and (row[i] != 0 or count == 0) and count < 127:
+                    if row[i] == 0 and count > 0:
+                        break  # Stop raw block before long black run
+                    i += 1
+                    count += 1
+                encoded.append(count)
+                encoded.extend(row[start:start+count])
+    return bytearray(encoded)
+
 def compress_rle(pixels, bytes_per_pixel):
     result = bytearray()
     for row in pixels:
@@ -749,17 +774,18 @@ def map_pixels_to_palette(pixels, palette):
     for row in pixels:
         index_row = []
         for pixel in row:
-            if pixel in pixel_index_cache:
-                best_index = pixel_index_cache[pixel]
+            px = pixel[1:]
+            if px in pixel_index_cache:
+                best_index = pixel_index_cache[px]
             else:
                 min_dist = float('inf')
                 best_index = 0
                 for i, color in enumerate(palette):
-                    dist = rgb_distance_squared(pixel, color)
+                    dist = rgb_distance_squared(px, color)
                     if dist < min_dist:
                         min_dist = dist
                         best_index = i
-                pixel_index_cache[pixel] = best_index
+                pixel_index_cache[px] = best_index
             index_row.append(best_index)
         result.append(index_row)
 
@@ -1003,12 +1029,8 @@ def tga32_to_txr(stream, tex_params, tgaDebug):
     else: # image_type == 1
         palette = [(p[2], p[1], p[0]) for p in tex_params['palette']] # reverse channels?
         indexes = map_pixels_to_palette(pixels, palette)
-        # pal = generate_palette(pixels)
-        # palette = pal['palette']
-        # indexes = pal['indexes']
 
         packed_palette = b''.join(struct.pack('BBB', *pixel) for pixel in palette)
-        # packed_palette = b''.join(struct.pack('BBB', *(0,0,0)) for pixel in palette)
         packed_colors = b''.join(struct.pack('B', ind) for row in indexes for ind in row)
 
         outBuffer.write(header.to_bytes())
@@ -1085,45 +1107,19 @@ def tga32_to_msk(stream, msk_params, tgaDebug = False):
     if bytes_per_pixel == 2:
         palette = [(0,0,0) for _ in range(256)]
     else:
-        palette = [(p[2], p[1], p[0]) for p in msk_params['palette']] # reverse channels?
-        indexes = map_pixels_to_palette(pixels, msk_params['palette'])
-
-        # pal = generate_palette(pixels)
-        # palette = pal['palette']
-        # indexes = pal['indexes']
+        palette = [(p[0], p[1], p[2]) for p in msk_params['palette']] # reverse channels?
+        indexes = map_pixels_to_palette(pixels, palette)
 
     if bytes_per_pixel == 2:
         img = Image(pixels, width, height, 'ARGB', '8888')
         new_image_pixels = img.save_as(image_format, 'ARGB')
-        # new_image_pixels = img.save_as('1555', 'ARGB')
 
         compressed_data = compress_rle(new_image_pixels, bytes_per_pixel)
     else:
-        flat_indexes = [[ind for row in indexes for ind in row]]
-        compressed_data = compress_rle(flat_indexes, 1)
+        compressed_data = compress_msk(indexes)
 
     packed_palette = b''.join(struct.pack('BBB', *pixel) for pixel in palette)
 
-    if tgaDebug:
-        debugBuffer = BytesIO()
-        debug_header = TGAHeader()
-        if bytes_per_pixel == 2:
-            debug_header.image_type = 10
-            debug_header.color_map_entry_size = 16
-            debug_header.pixel_depht = 16
-        else: # bytes_per_pixel == 1
-            debug_header.image_type = 9
-            debug_header.color_map_type = 1
-            debug_header.color_map_length = 256
-            debug_header.color_map_entry_size = 24
-            debug_header.pixel_depht = 8
-        debug_header.image_width = header.image_width
-        debug_header.image_height = header.image_height
-        debug_header.image_descriptor = 32
-
-        debugBuffer.write(debug_header.to_bytes())
-        debugBuffer.write(packed_palette)
-        debugBuffer.write(compressed_data)
 
     outBuffer = BytesIO()
 
@@ -1148,6 +1144,31 @@ def tga32_to_msk(stream, msk_params, tgaDebug = False):
         outBuffer.write(struct.pack('<i', a_msk))
     # outBuffer.write('ENDR'.encode('cp1251'))
     # outBuffer.write(struct.pack("<i", 0)) # always int 0
+
+    if tgaDebug:
+        debugBuffer = BytesIO()
+        debug_header = TGAHeader()
+        if bytes_per_pixel == 2:
+            # debug_header.image_type = 10
+            debug_header.image_type = 2
+            debug_header.color_map_entry_size = 16
+            debug_header.pixel_depht = 16
+        else: # bytes_per_pixel == 1
+            # debug_header.image_type = 9
+            debug_header.image_type = 1
+            debug_header.color_map_type = 1
+            debug_header.color_map_length = 256
+            debug_header.color_map_entry_size = 24
+            debug_header.pixel_depht = 8
+            compressed_data = b''.join(struct.pack('B', ind) for row in indexes for ind in row)
+
+        debug_header.image_width = header.image_width
+        debug_header.image_height = header.image_height
+        debug_header.image_descriptor = 32
+
+        debugBuffer.write(debug_header.to_bytes())
+        debugBuffer.write(packed_palette)
+        debugBuffer.write(compressed_data)
 
     result = {
         "data": outBuffer,
@@ -1240,21 +1261,25 @@ def msk_to_tga32(stream, tgaDebug):
         debugBuffer = BytesIO()
         debug_header = TGAHeader()
         if bytes_per_pixel == 2:
-            debug_header.image_type = 10
+            # debug_header.image_type = 10
+            debug_header.image_type = 2
             debug_header.color_map_entry_size = 16
             debug_header.pixel_depht = 16
+            debug_data = rle_bytes 
         else: # bytes_per_pixel == 1
-            debug_header.image_type = 9
+            # debug_header.image_type = 9
+            debug_header.image_type = 1
             debug_header.color_map_type = 1
             debug_header.color_map_length = 256
             debug_header.color_map_entry_size = 24
             debug_header.pixel_depht = 8
+            debug_data = b''.join(struct.pack('B', ind) for ind in colors)
+
         debug_header.image_width = header.image_width
         debug_header.image_height = header.image_height
         debug_header.image_descriptor = 32
         
         debug_palette = palette_bytes
-        debug_data = rle_bytes 
 
         debugBuffer.write(debug_header.to_bytes())
         debugBuffer.write(debug_palette)

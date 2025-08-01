@@ -15,7 +15,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger("unpack_res")
 log.setLevel(logging.DEBUG)
 
-def resunpack(resFilepath, selected_sections, tgaDebug, saveTxrMsk = False):
+def resunpack(resFilepath, outFolderpath, selected_sections, tgaDebug, saveTxrMsk = False):
     
     read_from_stream = None
     with open(resFilepath, 'rb') as file:
@@ -41,7 +41,11 @@ def resunpack(resFilepath, selected_sections, tgaDebug, saveTxrMsk = False):
         
         sections[section['name']] = section
 
-    unpackDir = os.path.join(os.path.dirname(resFilepath), "{}_unpack".format(resFilename))
+    unpackDir = outFolderpath
+    if outFolderpath is None:
+        unpackDir = os.path.join(os.path.dirname(resFilepath), "{}_unpack".format(resFilename))
+    
+    print(unpackDir)
     if not os.path.exists(unpackDir):
         os.mkdir(unpackDir)
 

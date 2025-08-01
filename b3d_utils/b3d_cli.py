@@ -94,6 +94,7 @@ remove_parser.add_argument('--rem-sounds', type = parse_items, help="Sound name 
 
 unpack_parser = subparser.add_parser("unpack", help="Unpack selected res file")
 unpack_parser.add_argument('--i', help="Path to res file", required=True)
+unpack_parser.add_argument('--o', help="Path to res unpack file. If not set, input folder path is used")
 unpack_parser.add_argument('--sections', help="List of sections to include. All included by default", nargs="+", choices=SECTIONS)
 unpack_parser.add_argument('--tga-debug', action='store_true', help="Save TGA files for debugging. If not set, TGA files are not saved")
 
@@ -221,7 +222,7 @@ elif args.format == 'res':
         else:
             selected_sections = SECTIONS
             
-        unpack_res.resunpack(args.i, selected_sections, args.tga_debug)
+        unpack_res.resunpack(args.i, args.o, selected_sections, args.tga_debug)
         
     elif args.command == 'pack':
 
