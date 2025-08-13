@@ -25,6 +25,9 @@ def read_chunk_type(_io):
         print(_io.tell())
         raise Exception()
 
+def read_as_array(obj):
+    return [val for val in obj.values()]
+
 def read_uv(stream):
     u, v = struct.unpack('<ff', stream.read(8))
     return {'u': u, 'v': v}
@@ -219,31 +222,50 @@ def read_b_0(stream):
 def read_b_1(stream):
     name1 = read_name32(stream)
     name2 = read_name32(stream)
-    return {'name1': name1, 'name2': name2}
+    return {
+        'name1': name1, 
+        'name2': name2
+    }
 
 def read_b_2(stream):
     bound1 = read_sphere(stream)
     unk1 = read_sphere(stream)
     child_cnt, = struct.unpack('<I', stream.read(4))
-    return {'bound1': bound1, 'unk1': unk1, 'child_cnt': child_cnt}
+    return {
+        'bound1': bound1, 
+        'unk1': unk1, 
+        'child_cnt': child_cnt
+    }
 
 def read_b_3(stream):
     bound1 = read_sphere(stream)
     child_cnt, = struct.unpack('<I', stream.read(4))
-    return {'bound1': bound1, 'child_cnt': child_cnt}
+    return {
+        'bound1': bound1, 
+        'child_cnt': child_cnt
+    }
 
 def read_b_4(stream):
     bound1 = read_sphere(stream)
     name1 = read_name32(stream)
     name2 = read_name32(stream)
     child_cnt, = struct.unpack('<I', stream.read(4))
-    return {'bound1': bound1, 'name1': name1, 'name2': name2, 'child_cnt': child_cnt}
+    return {
+        'bound1': bound1, 
+        'name1': name1, 
+        'name2': name2, 
+        'child_cnt': child_cnt
+    }
 
 def read_b_5(stream):
     bound1 = read_sphere(stream)
     name1 = read_name32(stream)
     child_cnt, = struct.unpack('<I', stream.read(4))
-    return {'bound1': bound1, 'name1': name1, 'child_cnt': child_cnt}
+    return {
+        'bound1': bound1, 
+        'name1': name1, 
+        'child_cnt': child_cnt
+    }
 
 def read_b_6(stream):
     bound1 = read_sphere(stream)
@@ -308,11 +330,17 @@ def read_b_10(stream):
 
 def read_b_11(stream):
     bound1 = read_sphere(stream)
-    unk1 = read_sphere(stream)
+    point1 = read_point(stream)
+    point2 = read_point(stream)
+    unk_i1, = struct.unpack('<I', stream.read(4))
+    unk_i2, = struct.unpack('<I', stream.read(4))
     child_cnt, = struct.unpack('<I', stream.read(4))
     return {
         'bound1': bound1,
-        'unk1': unk1,
+        'point1': point1,
+        'point2': point2,
+        'unk_i1': unk_i1,
+        'unk_i2': unk_i2,
         'child_cnt': child_cnt
     }
 
@@ -320,52 +348,52 @@ def read_b_12(stream):
     bound1 = read_sphere(stream)
     unk1 = read_sphere(stream)
     unk_i1, unk_i2, unk_count = struct.unpack('<III', stream.read(12))
-    unk_floats = list(struct.unpack(f'<{unk_count}f', stream.read(4 * unk_count)))
+    unk_raw = stream.read(4 * unk_count)
     return {
         'bound1': bound1,
         'unk1': unk1,
         'unk_i1': unk_i1,
         'unk_i2': unk_i2,
         'unk_count': unk_count,
-        'unk_floats': unk_floats
+        'unk_raw': unk_raw
     }
 
 def read_b_13(stream):
     bound1 = read_sphere(stream)
     unk_i1, unk_i2, unk_count = struct.unpack('<III', stream.read(12))
-    unk_floats = list(struct.unpack(f'<{unk_count}f', stream.read(4 * unk_count)))
+    unk_raw = stream.read(4 * unk_count)
     return {
         'bound1': bound1,
         'unk_i1': unk_i1,
         'unk_i2': unk_i2,
         'unk_count': unk_count,
-        'unk_floats': unk_floats
+        'unk_raw': unk_raw
     }
 
 def read_b_14(stream):
     bound1 = read_sphere(stream)
     unk1 = read_sphere(stream)
     unk_i1, unk_i2, unk_count = struct.unpack('<III', stream.read(12))
-    unk_floats = list(struct.unpack(f'<{unk_count}f', stream.read(4 * unk_count)))
+    unk_raw = stream.read(4 * unk_count)
     return {
         'bound1': bound1,
         'unk1': unk1,
         'unk_i1': unk_i1,
         'unk_i2': unk_i2,
         'unk_count': unk_count,
-        'unk_floats': unk_floats
+        'unk_raw': unk_raw
     }
 
 def read_b_15(stream):
     bound1 = read_sphere(stream)
     unk_i1, unk_i2, unk_count = struct.unpack('<III', stream.read(12))
-    unk_floats = list(struct.unpack(f'<{unk_count}f', stream.read(4 * unk_count)))
+    unk_raw = stream.read(4 * unk_count)
     return {
         'bound1': bound1,
         'unk_i1': unk_i1,
         'unk_i2': unk_i2,
         'unk_count': unk_count,
-        'unk_floats': unk_floats
+        'unk_raw': unk_raw
     }
 
 def read_b_16(stream):
@@ -375,7 +403,7 @@ def read_b_16(stream):
     unk_f1, unk_f2 = struct.unpack('<ff', stream.read(8))
     unk_i1, unk_i2 = struct.unpack('<II', stream.read(8))
     unk_count, = struct.unpack('<I', stream.read(4))
-    unk_floats = list(struct.unpack(f'<{unk_count}f', stream.read(4 * unk_count)))
+    unk_raw = stream.read(4 * unk_count)
     return {
         'bound1': bound1,
         'point1': point1,
@@ -385,7 +413,7 @@ def read_b_16(stream):
         'unk_i1': unk_i1,
         'unk_i2': unk_i2,
         'unk_count': unk_count,
-        'unk_floats': unk_floats
+        'unk_raw': unk_raw
     }
 
 def read_b_17(stream):
@@ -395,7 +423,7 @@ def read_b_17(stream):
     unk_f1, unk_f2 = struct.unpack('<ff', stream.read(8))
     unk_i1, unk_i2 = struct.unpack('<II', stream.read(8))
     unk_count, = struct.unpack('<I', stream.read(4))
-    unk_floats = list(struct.unpack(f'<{unk_count}f', stream.read(4 * unk_count)))
+    unk_raw = stream.read(4 * unk_count)
     return {
         'bound1': bound1,
         'point1': point1,
@@ -405,7 +433,7 @@ def read_b_17(stream):
         'unk_i1': unk_i1,
         'unk_i2': unk_i2,
         'unk_count': unk_count,
-        'unk_floats': unk_floats
+        'unk_raw': unk_raw
     }
 
 def read_b_18(stream):
@@ -499,8 +527,7 @@ def read_b_24(stream):
     }
 
 def read_b_25(stream):
-    unk_i1, = struct.unpack('<f', stream.read(4))
-    unk_i2, unk_i3 = struct.unpack('<II', stream.read(8))
+    unk_i1, unk_i2, unk_i3 = struct.unpack('<III', stream.read(12))
     unk_name = read_name32(stream)
     unk_p1 = read_point(stream)
     unk_p2 = read_point(stream)
@@ -696,7 +723,7 @@ def read_b_37(stream):
 def read_b_39(stream):
     bound1 = read_sphere(stream)
     color_r, = struct.unpack('<I', stream.read(4))
-    unk_f1, unk_f2 = struct.unpack('<ff', stream.read(8))
+    unk_f1, = struct.unpack('<ff', stream.read(4))
     fog_start, fog_end = struct.unpack('<ff', stream.read(8))
     color_id, = struct.unpack('<I', stream.read(4))
     child_cnt, = struct.unpack('<I', stream.read(4))
@@ -704,7 +731,6 @@ def read_b_39(stream):
         'bound1': bound1,
         'color_r': color_r,
         'unk_f1': unk_f1,
-        'unk_f2': unk_f2,
         'fog_start': fog_start,
         'fog_end': fog_end,
         'color_id': color_id,
@@ -717,7 +743,7 @@ def read_b_40(stream):
     name2 = read_name32(stream)
     unk_i1, unk_i2 = struct.unpack('<II', stream.read(8))
     unk_count, = struct.unpack('<I', stream.read(4))
-    unk_floats = [struct.unpack('<f', stream.read(4))[0] for _ in range(unk_count)]
+    unk_raw = stream.read(4 * unk_count)
     return {
         'bound1': bound1,
         'name1': name1,
@@ -725,7 +751,7 @@ def read_b_40(stream):
         'unk_i1': unk_i1,
         'unk_i2': unk_i2,
         'unk_count': unk_count,
-        'unk_floats': unk_floats
+        'unk_raw': unk_raw
     }
 
 def read_block(stream):

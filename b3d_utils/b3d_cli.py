@@ -7,6 +7,7 @@ import remove_b3d
 import merge_b3d
 import extract_b3d
 import list_b3d
+import sqlite_b3d
 
 import remove_res
 import merge_res
@@ -92,16 +93,21 @@ remove_parser.add_argument('--ref-texturefiles', action='store_true', help="Extr
 remove_parser.add_argument('--rem-materials', type = parse_items, help="Material name in res")
 remove_parser.add_argument('--rem-sounds', type = parse_items, help="Sound name in res")
 
+# unpack
 unpack_parser = subparser.add_parser("unpack", help="Unpack selected res file")
 unpack_parser.add_argument('--i', help="Path to res file", required=True)
 unpack_parser.add_argument('--o', help="Path to res unpack file. If not set, input folder path is used")
 unpack_parser.add_argument('--sections', help="List of sections to include. All included by default", nargs="+", choices=SECTIONS)
 unpack_parser.add_argument('--tga-debug', action='store_true', help="Save TGA files for debugging. If not set, TGA files are not saved")
+# unpack_parser.add_argument('--img_format', help="What format to save images into: tga or png", choices=['png', 'tga'], default='png')
 
+# pack
 pack_parser = subparser.add_parser("pack", help="Unpack selected res file")
 pack_parser.add_argument('--i', help="Path to unpacked res folder", required=True)
 pack_parser.add_argument('--o', help="Path to output res file. If not set, input folder name is used")
 pack_parser.add_argument('--tga-debug', action='store_true', help="Save TGA files for debugging. If not set, TGA files are not saved")
+# pack_parser.add_argument('--img_format', help="What format to load images from: tga or png", choices=['png', 'tga'], default='png')
+
 
 #b3d utils
 b3d_parser = format_subparser.add_parser("b3d", help="Commands to work with .b3d files")
@@ -143,12 +149,16 @@ remove_parser.add_argument('--rem-materials', type = parse_items, help="Material
 remove_parser.add_argument('--o', help="Path to b3d file to save result. If not set save into original file")
 
 # merge
-merge_parser = subparser.add_parser("merge", help="List b3d file")
+merge_parser = subparser.add_parser("merge", help="Merge b3d files")
 merge_parser.add_argument('--i-from', help="Path to b3d file to merge from", required=True)
 merge_parser.add_argument('--i-to', help="Path to b3d file to merge into", required=True)
 merge_parser.add_argument('--replace', action='store_true', help="If is set replaces nodes with same names. Ignores otherwise")
 merge_parser.add_argument('--o', help="Path to b3d file to save merge result. If not set merges into original file")
 
+sqlite_parser = subparser.add_parser("sqlite", help="Save b3d params in SQLite database")
+sqlite_parser.add_argument('--i', help="Path to b3d file", required=True)
+sqlite_parser.add_argument('--db', help="Path to sqlite file", required=True)
+sqlite_parser.add_argument('--drop', action='store_true', help="Drop DB before parsing", default=False)
 
 args = parser.parse_args()
 print(args)
@@ -175,6 +185,9 @@ if args.format == 'b3d':
 
     elif args.command == 'remove':
         remove_b3d.b3dremove(args.i, args.o, args.rem_materials, args.rem_nodes)
+        
+    elif args.command == 'sqlite':
+        sqlite_b3d.b3dsqlite(args.i, args.db, args.drop)
 
 elif args.format == 'res':
     
