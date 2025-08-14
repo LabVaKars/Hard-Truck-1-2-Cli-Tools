@@ -23,7 +23,7 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
     rootObjects = {}
     
     b3dBasename = os.path.basename(b3dFilename)[:-4] #cut extension
-
+    
     con = sqlite3.connect(dbFilename)
 
     b3d_stream = None
@@ -40,35 +40,36 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
     ex = 0
     level = 0
 
-
     if dropDB:
         sqlu.dropDbStruct(con)
     sqlu.createDbStruct(con)
     objName = ''
 
-    nodes = []
-    curNode = None
-    curObj = curNode
+    id_stack = [(None, None)]
 
     while ex != ChunkType.END_CHUNKS:
 
         ex = b3dr.read_chunk_type(b3d_stream)
         if ex == ChunkType.END_CHUNK:
             level -= 1
+            id_stack.pop()
+
         elif ex == ChunkType.END_CHUNKS:
             break
         elif ex == ChunkType.GROUP_CHUNK: #skip
             continue
         elif ex == ChunkType.BEGIN_CHUNK:
-
-            if level == 0:
-                start_pos = b3d_stream.tell()-4
+            # if level == 0:
+            #     start_pos = b3d_stream.tell()-4
+            parent = id_stack[-1]
             
             block_name = b3dr.read_name32(b3d_stream)
             block_type, = struct.unpack('<I', b3d_stream.read(4))
+            block_subtype = None
             block_data = None
             
-            row = [b3dBasename, block_name['name']]
+            row = [b3dBasename, block_name['name'], parent[0], parent[1]]
+            subrow = []
 
             # Switch based on block_type
             if block_type == 0:
@@ -77,31 +78,26 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 block_data = b3dr.read_b_1(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['name1']))
                 row.extend(b3dr.read_as_array(block_data['name2']))
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 2:
                 block_data = b3dr.read_b_2(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.extend(b3dr.read_as_array(block_data['unk1'])) 
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 3:
                 block_data = b3dr.read_b_3(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 4:
                 block_data = b3dr.read_b_4(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.extend(b3dr.read_as_array(block_data['name1']))
                 row.extend(b3dr.read_as_array(block_data['name2']))
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 5:
                 block_data = b3dr.read_b_5(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.extend(b3dr.read_as_array(block_data['name1']))
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 6:
                 block_data = b3dr.read_b_6(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -109,31 +105,26 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.extend(b3dr.read_as_array(block_data['name2']))
                 row.append(block_data['vert_count'])
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 7:
                 block_data = b3dr.read_b_7(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.extend(b3dr.read_as_array(block_data['group_name']))
                 row.append(block_data['vert_count'])
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 8:
                 block_data = b3dr.read_b_8(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.append(block_data['poly_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 9:
                 block_data = b3dr.read_b_9(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.extend(b3dr.read_as_array(block_data['unk1'])) 
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 10:
                 block_data = b3dr.read_b_10(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.extend(b3dr.read_as_array(block_data['unk1'])) 
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 11:
                 block_data = b3dr.read_b_11(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -142,7 +133,6 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_i2'])
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 12:
                 block_data = b3dr.read_b_12(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -150,14 +140,12 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_i2'])
                 row.append(block_data['unk_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 13:
                 block_data = b3dr.read_b_13(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_i2'])
                 row.append(block_data['unk_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 14:
                 block_data = b3dr.read_b_14(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -165,14 +153,12 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_i2'])
                 row.append(block_data['unk_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 15:
                 block_data = b3dr.read_b_15(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_i2'])
                 row.append(block_data['unk_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 16:
                 block_data = b3dr.read_b_16(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -183,7 +169,6 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_i2'])
                 row.append(block_data['unk_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 17:
                 block_data = b3dr.read_b_17(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -194,17 +179,14 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_i2'])
                 row.append(block_data['unk_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 18:
                 block_data = b3dr.read_b_18(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.extend(b3dr.read_as_array(block_data['space_name']))
                 row.extend(b3dr.read_as_array(block_data['add_name']))
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 19:
                 block_data = b3dr.read_b_19(b3d_stream)
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 20:
                 block_data = b3dr.read_b_20(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -212,27 +194,23 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_i2'])
                 row.append(block_data['unk_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 21:
                 block_data = b3dr.read_b_21(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.append(block_data['group_cnt'])
                 row.append(block_data['unk_i1'])
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 22:
                 block_data = b3dr.read_b_22(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.extend(b3dr.read_as_array(block_data['unk1'])) 
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 23:
                 block_data = b3dr.read_b_23(b3d_stream)
                 row.append(block_data['unk_i1'])
                 row.append(block_data['surface'])
                 row.append(block_data['unk_count'])
                 row.append(block_data['verts_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 24:
                 block_data = b3dr.read_b_24(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['coord1'])) 
@@ -241,7 +219,6 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.extend(b3dr.read_as_array(block_data['pos'])) 
                 row.append(block_data['flag'])
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 25:
                 block_data = b3dr.read_b_25(b3d_stream)
                 row.append(block_data['unk_i1'])
@@ -255,7 +232,6 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unkfl3'])
                 row.append(block_data['unkfl4'])
                 row.append(block_data['unkfl5'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 26:
                 block_data = b3dr.read_b_26(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -263,20 +239,17 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.extend(b3dr.read_as_array(block_data['unk_p2'])) 
                 row.extend(b3dr.read_as_array(block_data['unk_p3'])) 
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 27:
                 block_data = b3dr.read_b_27(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.append(block_data['flag'])
                 row.extend(b3dr.read_as_array(block_data['unk_p1'])) 
                 row.append(block_data['material'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 28:
                 block_data = b3dr.read_b_28(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.extend(b3dr.read_as_array(block_data['sprite_center'])) 
                 row.append(block_data['poly_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 29:
                 block_data = b3dr.read_b_29(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -284,14 +257,12 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_i1'])
                 row.extend(b3dr.read_as_array(block_data['unk_1'])) 
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 30:
                 block_data = b3dr.read_b_30(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.extend(b3dr.read_as_array(block_data['room_name']))
                 row.extend(b3dr.read_as_array(block_data['point1'])) 
                 row.extend(b3dr.read_as_array(block_data['point2'])) 
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 31:
                 block_data = b3dr.read_b_31(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -299,7 +270,6 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.extend(b3dr.read_as_array(block_data['unk1'])) 
                 row.append(block_data['int2'])
                 row.extend(b3dr.read_as_array(block_data['unk_p2'])) 
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 33:
                 block_data = b3dr.read_b_33(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -316,20 +286,17 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_f4'])
                 row.extend(b3dr.read_as_array(block_data['rgb'])) 
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 34:
                 block_data = b3dr.read_b_34(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 35:
                 block_data = b3dr.read_b_35(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
                 row.append(block_data['mtype'])
                 row.append(block_data['texnum'])
                 row.append(block_data['poly_count'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 36:
                 block_data = b3dr.read_b_36(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -338,7 +305,6 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['format_raw'])
                 row.append(block_data['vert_count'])
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 37:
                 block_data = b3dr.read_b_37(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -346,7 +312,6 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['format_raw'])
                 row.append(block_data['vert_count'])
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 39:
                 block_data = b3dr.read_b_39(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -356,7 +321,6 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['fog_end'])
                 row.append(block_data['color_id'])
                 row.append(block_data['child_cnt'])
-                sqlu.insertByType(con, block_type, row)
             elif block_type == 40:
                 block_data = b3dr.read_b_40(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -365,4 +329,27 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_i2'])
                 row.append(block_data['unk_count'])
-                sqlu.insertByType(con, block_type, row)
+                
+                if(block_data['unk_parsed'] is not None):
+                    sub_data = block_data['unk_parsed']
+                    block_subtype = sub_data['block_subtype']
+                    subrow.append(sub_data['mat_index1'])
+                    subrow.append(sub_data['mat_index2'])
+                    if(sub_data['unk1'] is not None):
+                        subrow.extend(b3dr.read_as_array(sub_data['unk1']))
+                    else:
+                        subrow.extend([None, None, None, None])
+                    if(sub_data['unk2'] is not None):
+                        subrow.extend(b3dr.read_as_array(sub_data['unk2']))
+                    else:
+                        subrow.extend([None, None, None, None])
+
+            new_id = sqlu.insertByType(con, block_type, row)
+            if (len(subrow) > 0):
+                subrow = [new_id] + subrow
+                sqlu.insertBySubType(con, block_type, block_subtype, subrow)
+            id_stack.append((new_id, block_type))
+            level += 1
+    
+    con.commit()
+    con.close()

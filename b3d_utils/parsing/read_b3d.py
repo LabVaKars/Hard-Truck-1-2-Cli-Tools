@@ -1,8 +1,15 @@
 import struct
 import re
 import enum
+from io import BytesIO
 
 import parsing.skip_b3d as b3ds 
+
+class B40(enum.Enum):
+    TREE = 'Tree'
+    DYNGLOW = 'DGlow'
+    PEOPLE = 'People'
+    SPARKLES = 'Sparkles'
 
 class ChunkType(enum.Enum):
     END_CHUNK = 0
@@ -45,7 +52,7 @@ def read_sphere(stream):
     return {'x': x, 'y': y, 'z': z, 'r': r}
 
 def read_name32(stream):
-    name = stream.read(32).decode('utf-8').rstrip('\x00')
+    name = stream.read(32).decode('cp1251').rstrip('\x00')
     return {'name': name}
 
 def is_empty_name(name):
@@ -744,6 +751,18 @@ def read_b_40(stream):
     unk_i1, unk_i2 = struct.unpack('<II', stream.read(8))
     unk_count, = struct.unpack('<I', stream.read(4))
     unk_raw = stream.read(4 * unk_count)
+    parsed = None
+    
+    if(unk_count > 0):
+        raw_stream = BytesIO(unk_raw)
+        if name2['name'] == "$$TreeGenerator1":
+            parsed = {}
+            parsed["block_subtype"] = B40.TREE
+            parsed["mat_index1"] = struct.unpack('<I', raw_stream.read(4))[0]
+            parsed["mat_index2"] = struct.unpack('<I', raw_stream.read(4))[0]
+            if (unk_count > 2):
+                parsed["unk1"] = read_sphere(raw_stream)
+                parsed["unk2"] = read_sphere(raw_stream)
     return {
         'bound1': bound1,
         'name1': name1,
@@ -751,7 +770,8 @@ def read_b_40(stream):
         'unk_i1': unk_i1,
         'unk_i2': unk_i2,
         'unk_count': unk_count,
-        'unk_raw': unk_raw
+        'unk_raw': unk_raw,
+        'unk_parsed': parsed
     }
 
 def read_block(stream):

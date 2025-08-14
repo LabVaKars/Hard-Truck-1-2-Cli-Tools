@@ -12,15 +12,22 @@ reloadTables = False
 
 args = sys.argv
 
+import parsing.read_b3d as rb3d
+
+
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger("sqlite_utils")
 log.setLevel(logging.DEBUG)
 
 b3dBlocks = [
-    1,2,3,4,5,6,7,8,9,10,
+    0,1,2,3,4,5,6,7,8,9,10,
     11,12,13,14,15,16,17,18,19,20,
     21,22,23,24,25,26,27,28,29,30,
     31,33,34,35,36,37,39,40
+]
+
+b3dSubBlocks = [
+    rb3d.B40.TREE
 ]
 
 def readName(file):
@@ -47,9 +54,33 @@ def tabPoint(name, isInt = False):
         {name}_y {ctype},
         {name}_z {ctype}""".format(name=name, ctype=ctype)
 
+def getBlockColumnBySubType(blockType, subType, noTypes = False):
+    blockColumns = ""
+    
+    if blockType == 40:
+        if subType == rb3d.B40.TREE:
+            blockColumns = """
+            mat_index1 INT,
+            mat_index2 INT,
+            {},
+            {}
+            """.format(
+                tabSphere("bound_sphere"),
+                tabSphere("unk_sphere")
+            )
+            
+    if noTypes:
+        blockColumns = blockColumns.replace(" INT", "")
+        blockColumns = blockColumns.replace(" FLOAT", "")
+        blockColumns = blockColumns.replace(" VARCHAR(32)", "")
+
+    return blockColumns
+
 def getBlockColumnByType(blockType, noTypes = False):
     blockColumns = ""
-    if blockType == 1:
+    if blockType == 0:
+        blockColumns = ""
+    elif blockType == 1:
         blockColumns = """
             name1 VARCHAR(32),
             name2 VARCHAR(32)
@@ -153,8 +184,7 @@ def getBlockColumnByType(blockType, noTypes = False):
             int2 INT,
             unk_cnt INT
         """.format(
-            tabSphere("bound_sphere"),
-            tabSphere("unk_sphere")
+            tabSphere("bound_sphere")
         )
     elif blockType in [16, 17]:
         blockColumns = """
@@ -397,9 +427,36 @@ def getBlockColumnByType(blockType, noTypes = False):
 
     return blockColumns
 
-insertColumns = {}
+insertSubTypeColumns = {}
+for blockEnum in b3dSubBlocks:
+    blockType = int(blockEnum.__class__.__name__[1:])
+    subType = blockEnum
+    insertSubTypeColumns[blockEnum] = getBlockColumnBySubType(blockType, subType, True)
+
+insertTypeColumns = {}
 for blockType in b3dBlocks:
-    insertColumns[blockType] = getBlockColumnByType(blockType, True)
+    insertTypeColumns[blockType] = getBlockColumnByType(blockType, True)
+
+def createTableBySubType(con, blockType, subType):
+    
+    cur = con.cursor()
+
+    sqlStatement = """
+        CREATE TABLE IF NOT EXISTS b_{}_{}(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            block_id INTEGER
+            {}
+        )
+    """
+    
+    blockColumns = getBlockColumnBySubType(blockType, subType)
+
+    if blockType != 0:
+        blockColumns = ","+blockColumns
+    sqlStatement = sqlStatement.format(blockType, subType.value, blockColumns)
+
+    cur.execute(sqlStatement)
+
 
 def createTableByType(con, blockType):
 
@@ -410,12 +467,18 @@ def createTableByType(con, blockType):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             b3dmodule VARCHAR(32),
             b3dname VARCHAR(32),
+            parent_id INTEGER,
+            parent_type INTEGER
             {}
         )
     """
     blockColumns = getBlockColumnByType(blockType)
 
-    cur.execute(sqlStatement.format(blockType, blockColumns))
+    if blockType != 0:
+        blockColumns = ","+blockColumns
+    sqlStatement = sqlStatement.format(blockType, blockColumns)
+
+    cur.execute(sqlStatement)
 
 def getPlaceholders(cnt):
     if cnt > 0:
@@ -423,21 +486,47 @@ def getPlaceholders(cnt):
         return ",".join(arr)
     return ""
 
+def insertBySubType(con, blockType, subType, row):
+    
+    cur = con.cursor()
+    count = (insertSubTypeColumns[subType]).count(",")+1+1
+    
+    blockColumns = insertSubTypeColumns[subType]
+    if blockType != 0:
+        blockColumns = ","+blockColumns
+
+    sqlStatement = """
+        INSERT INTO b_{}_{}(block_id {})
+        VALUES ({})
+    """.format(blockType, subType.value, blockColumns, getPlaceholders(count))
+
+    cur.execute(sqlStatement, row)
+    id = cur.lastrowid
+    con.commit()
+    return id
+
 def insertByType(con, blockType, row):
 
     # log.debug("inserting {}".format(blockType))
 
     cur = con.cursor()
-
-    count = (insertColumns[blockType]).count(",")+1+2
+    count = (insertTypeColumns[blockType]).count(",")+1+4
+    if blockType == 0:
+        count-=1
+    
+    blockColumns = insertTypeColumns[blockType]
+    if blockType != 0:
+        blockColumns = ","+blockColumns
 
     sqlStatement = """
-        INSERT INTO b_{}(b3dmodule, b3dname, {})
+        INSERT INTO b_{}(b3dmodule, b3dname, parent_id, parent_type {})
         VALUES ({})
-    """.format(blockType, insertColumns[blockType], getPlaceholders(count))
+    """.format(blockType, blockColumns, getPlaceholders(count))
 
     cur.execute(sqlStatement, row)
+    id = cur.lastrowid
     con.commit()
+    return id
 
 def dropDbStruct(con):
 
@@ -448,11 +537,23 @@ def dropDbStruct(con):
             DROP TABLE IF EXISTS b_{}
         """.format(blockType))
 
+    for blockEnum in b3dSubBlocks:
+        blockType = int(blockEnum.__class__.__name__[1:])
+        subType = blockEnum
+        cur.execute("""
+            DROP TABLE IF EXISTS b_{}_{}
+        """.format(blockType, subType))
+
     con.commit()
 
 def createDbStruct(con):
 
     for blockType in b3dBlocks:
         createTableByType(con, blockType)
+    
+    for blockEnum in b3dSubBlocks:
+        blockType = int(blockEnum.__class__.__name__[1:])
+        subType = blockEnum
+        createTableBySubType(con, blockType, subType)
 
     con.commit()
