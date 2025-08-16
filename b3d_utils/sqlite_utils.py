@@ -27,7 +27,7 @@ b3dBlocks = [
 ]
 
 b3dSubBlocks = [
-    rb3d.B40.TREE
+    rb3d.B40.TREE, rb3d.B40.DYNGLOW, rb3d.B40.PEOPLE, rb3d.B40.SPARKLES
 ]
 
 def readName(file):
@@ -54,6 +54,12 @@ def tabPoint(name, isInt = False):
         {name}_y {ctype},
         {name}_z {ctype}""".format(name=name, ctype=ctype)
 
+def tabUV(name, isInt = False):
+    ctype = "INT" if isInt else "FLOAT"
+    return """
+        {name}_u {ctype},
+        {name}_v {ctype}""".format(name=name, ctype=ctype)
+
 def getBlockColumnBySubType(blockType, subType, noTypes = False):
     blockColumns = ""
     
@@ -68,6 +74,53 @@ def getBlockColumnBySubType(blockType, subType, noTypes = False):
                 tabSphere("bound_sphere"),
                 tabSphere("unk_sphere")
             )
+
+        elif subType == rb3d.B40.DYNGLOW:
+            blockColumns = """
+            unk_f1 FLOAT,
+            unk_f2 FLOAT,
+            unk_f3 FLOAT,
+            unk_f4 FLOAT,
+            unk_f5 FLOAT,
+            unk_f6 FLOAT,
+            mat_name VARCHAR(32),
+            res_index INT,
+            unk_f11 FLOAT,
+            unk_f12 FLOAT
+            """
+
+        elif subType == rb3d.B40.PEOPLE:
+            blockColumns = """
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            people_id INT,
+            mat_index INT
+            """.format(
+                tabPoint("p1"),
+                tabUV("uv1"),
+                tabPoint("p2"),
+                tabUV("uv2"),
+                tabPoint("p3"),
+                tabUV("uv3"),
+                tabPoint("p4"),
+                tabUV("uv4")
+            )
+
+        elif subType == rb3d.B40.SPARKLES:
+            blockColumns = """
+                {},
+                {}
+            """.format(
+                tabPoint("pos"),
+                tabPoint("rot")
+            )
+            
             
     if noTypes:
         blockColumns = blockColumns.replace(" INT", "")

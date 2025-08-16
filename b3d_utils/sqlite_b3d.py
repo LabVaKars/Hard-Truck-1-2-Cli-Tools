@@ -225,13 +225,13 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_i2'])
                 row.append(block_data['unk_i3'])
                 row.extend(b3dr.read_as_array(block_data['unk_name']))
-                row.extend(b3dr.read_as_array(block_data['point1'])) 
-                row.extend(b3dr.read_as_array(block_data['point2'])) 
-                row.append(block_data['unkfl1'])
-                row.append(block_data['unkfl2'])
-                row.append(block_data['unkfl3'])
-                row.append(block_data['unkfl4'])
-                row.append(block_data['unkfl5'])
+                row.extend(b3dr.read_as_array(block_data['unk_p1'])) 
+                row.extend(b3dr.read_as_array(block_data['unk_p2'])) 
+                row.append(block_data['unk_f11'])
+                row.append(block_data['unk_f12'])
+                row.append(block_data['unk_f13'])
+                row.append(block_data['unk_f14'])
+                row.append(block_data['unk_f15'])
             elif block_type == 26:
                 block_data = b3dr.read_b_26(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -333,17 +333,44 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 if(block_data['unk_parsed'] is not None):
                     sub_data = block_data['unk_parsed']
                     block_subtype = sub_data['block_subtype']
-                    subrow.append(sub_data['mat_index1'])
-                    subrow.append(sub_data['mat_index2'])
-                    if(sub_data['unk1'] is not None):
-                        subrow.extend(b3dr.read_as_array(sub_data['unk1']))
-                    else:
-                        subrow.extend([None, None, None, None])
-                    if(sub_data['unk2'] is not None):
-                        subrow.extend(b3dr.read_as_array(sub_data['unk2']))
-                    else:
-                        subrow.extend([None, None, None, None])
+                    if block_subtype == b3dr.B40.TREE:
+                        subrow.append(sub_data['mat_index1'])
+                        subrow.append(sub_data['mat_index2'])
+                        if(sub_data['unk1'] is not None):
+                            subrow.extend(b3dr.read_as_array(sub_data['unk1']))
+                        else:
+                            subrow.extend([None, None, None, None])
+                        if(sub_data['unk2'] is not None):
+                            subrow.extend(b3dr.read_as_array(sub_data['unk2']))
+                        else:
+                            subrow.extend([None, None, None, None])
+                    elif block_subtype == b3dr.B40.DYNGLOW:
+                        subrow.append(sub_data['unk_f1'])
+                        subrow.append(sub_data['unk_f2'])
+                        subrow.append(sub_data['unk_f3'])
+                        subrow.append(sub_data['unk_f4'])
+                        subrow.append(sub_data['unk_f5'])
+                        subrow.append(sub_data['unk_f6'])
+                        subrow.append(sub_data['mat_name'])
+                        subrow.append(sub_data['res_index'])
+                        subrow.append(sub_data['unk_f11'])
+                        subrow.append(sub_data['unk_f12'])
+                    elif block_subtype == b3dr.B40.PEOPLE:
+                        subrow.extend(b3dr.read_as_array(sub_data['unk_p1']))
+                        subrow.extend(b3dr.read_as_array(sub_data['unk_uv1']))
+                        subrow.extend(b3dr.read_as_array(sub_data['unk_p2']))
+                        subrow.extend(b3dr.read_as_array(sub_data['unk_uv2']))
+                        subrow.extend(b3dr.read_as_array(sub_data['unk_p3']))
+                        subrow.extend(b3dr.read_as_array(sub_data['unk_uv3']))
+                        subrow.extend(b3dr.read_as_array(sub_data['unk_p4']))
+                        subrow.extend(b3dr.read_as_array(sub_data['unk_uv4']))
+                        subrow.append(sub_data['people_id'])
+                        subrow.append(sub_data['mat_index'])
+                    elif block_subtype == b3dr.B40.SPARKLES:
+                        subrow.extend(b3dr.read_as_array(sub_data['pos']))
+                        subrow.extend(b3dr.read_as_array(sub_data['rot']))
 
+                        
             new_id = sqlu.insertByType(con, block_type, row)
             if (len(subrow) > 0):
                 subrow = [new_id] + subrow

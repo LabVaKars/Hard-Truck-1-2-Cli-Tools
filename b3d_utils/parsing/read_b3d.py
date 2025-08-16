@@ -4,6 +4,7 @@ import enum
 from io import BytesIO
 
 import parsing.skip_b3d as b3ds 
+import parsing.read_res as res 
 
 class B40(enum.Enum):
     TREE = 'Tree'
@@ -730,7 +731,7 @@ def read_b_37(stream):
 def read_b_39(stream):
     bound1 = read_sphere(stream)
     color_r, = struct.unpack('<I', stream.read(4))
-    unk_f1, = struct.unpack('<ff', stream.read(4))
+    unk_f1, = struct.unpack('<f', stream.read(4))
     fog_start, fog_end = struct.unpack('<ff', stream.read(8))
     color_id, = struct.unpack('<I', stream.read(4))
     child_cnt, = struct.unpack('<I', stream.read(4))
@@ -763,6 +764,43 @@ def read_b_40(stream):
             if (unk_count > 2):
                 parsed["unk1"] = read_sphere(raw_stream)
                 parsed["unk2"] = read_sphere(raw_stream)
+            else:
+                parsed["unk1"] = None
+                parsed["unk2"] = None
+        elif name2['name'] == "$$DynamicGlow":
+            parsed = {}
+            parsed["block_subtype"] = B40.DYNGLOW
+            parsed["unk_f1"] = struct.unpack('<f', raw_stream.read(4))[0]
+            parsed["unk_f2"] = struct.unpack('<f', raw_stream.read(4))[0]
+            parsed["unk_f3"] = struct.unpack('<f', raw_stream.read(4))[0]
+            parsed["unk_f4"] = struct.unpack('<f', raw_stream.read(4))[0]
+            if unk_i1 not in [3,8]:
+                parsed["unk_f5"] = struct.unpack('<f', raw_stream.read(4))[0]
+                parsed["unk_f6"] = struct.unpack('<f', raw_stream.read(4))[0]
+            parsed["mat_name"] = res.read_cstring(raw_stream)
+            parsed["res_index"] = struct.unpack('<I', raw_stream.read(4))[0]
+            if unk_i1 not in [1,2,3,4]:
+                parsed["unk_f11"] = struct.unpack('<f', raw_stream.read(4))[0]
+                parsed["unk_f12"] = struct.unpack('<f', raw_stream.read(4))[0]
+        elif name2['name'] == "$$People":
+            parsed = {}
+            parsed["block_subtype"] = B40.PEOPLE
+            parsed["unk_p1"] = read_point(raw_stream)
+            parsed["unk_uv1"] = read_uv(raw_stream)
+            parsed["unk_p2"] = read_point(raw_stream)
+            parsed["unk_uv2"] = read_uv(raw_stream)
+            parsed["unk_p3"] = read_point(raw_stream)
+            parsed["unk_uv3"] = read_uv(raw_stream)
+            parsed["unk_p4"] = read_point(raw_stream)
+            parsed["unk_uv4"] = read_uv(raw_stream)
+            parsed["people_id"] = struct.unpack('<I', raw_stream.read(4))[0]
+            parsed["mat_index"] = struct.unpack('<I', raw_stream.read(4))[0]
+        elif name2['name'] == "$$WeldingSparkles":
+            parsed = {}
+            parsed["block_subtype"] = B40.SPARKLES
+            parsed["pos"] = read_point(raw_stream)
+            parsed["rot"] = read_point(raw_stream)
+
     return {
         'bound1': bound1,
         'name1': name1,
