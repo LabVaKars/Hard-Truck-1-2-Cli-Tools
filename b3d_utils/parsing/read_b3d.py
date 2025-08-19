@@ -12,6 +12,22 @@ class B40(enum.Enum):
     PEOPLE = 'People'
     SPARKLES = 'Sparkles'
 
+class B20(enum.Enum):
+    T0 = 'T0'
+    T3 = 'T3'
+    T5 = 'T5'
+    T6 = 'T6'
+
+class B13(enum.Enum):
+    T4095 = 'T4095'
+    T31 = 'T31'
+    T30 = 'T30'
+    T24 = 'T24'
+    T23 = 'T23'
+    T16 = 'T16'
+    T11 = 'T11'
+    T10 = 'T10'
+
 class ChunkType(enum.Enum):
     END_CHUNK = 0
     END_CHUNKS = 1
@@ -370,12 +386,67 @@ def read_b_13(stream):
     bound1 = read_sphere(stream)
     unk_i1, unk_i2, unk_count = struct.unpack('<III', stream.read(12))
     unk_raw = stream.read(4 * unk_count)
+
+    parsed = None
+    
+    if(unk_count > 0):
+        raw_stream = BytesIO(unk_raw)
+        if unk_i1 == 4095:
+            parsed = {}
+            parsed["block_subtype"] = B13.T4095
+            parsed["room_name"] = res.read_cstring(raw_stream)
+
+        elif unk_i1 == 31:
+            parsed = {}
+            parsed["block_subtype"] = B13.T31
+            parsed["p1"] = read_point(raw_stream)
+            parsed["p2"] = read_point(raw_stream)
+            parsed["unk_i1"] = struct.unpack('<I', raw_stream.read(4))[0]
+
+        elif unk_i1 == 30:
+            parsed = {}
+            parsed["block_subtype"] = B13.T30
+            parsed["speed"] = struct.unpack('<I', raw_stream.read(4))[0]
+            parsed["rot"] = read_point(raw_stream)
+
+        elif unk_i1 in (10, 11, 24):
+            unk2_mod = unk_i2 % 10
+            parsed = {}
+            if unk_i1 == 10:
+                parsed["block_subtype"] = B13.T10
+            elif unk_i1 == 11:
+                parsed["block_subtype"] = B13.T11
+            elif unk_i1 == 24:
+                parsed["block_subtype"] = B13.T24
+            if(unk2_mod > 0):
+                parsed["p1"] = read_point(raw_stream)
+                parsed["rot1"] = read_point(raw_stream)
+            if(unk2_mod > 1):
+                parsed["p2"] = read_point(raw_stream)
+                parsed["rot2"] = read_point(raw_stream)
+            if(unk2_mod > 2):
+                parsed["p3"] = read_point(raw_stream)
+                parsed["rot3"] = read_point(raw_stream)
+            parsed["room_name"] = res.read_cstring(raw_stream)
+
+        elif unk_i1 == 23:
+            parsed = {}
+            parsed["block_subtype"] = B13.T23
+            parsed["p1"] = read_point(raw_stream)
+            parsed["radius"] = struct.unpack('<f', raw_stream.read(4))[0]
+
+        elif unk_i1 == 16:
+            parsed = {}
+            parsed["block_subtype"] = B13.T16
+            parsed["water_height"] = struct.unpack('<f', raw_stream.read(4))[0]
+
     return {
         'bound1': bound1,
         'unk_i1': unk_i1,
         'unk_i2': unk_i2,
         'unk_count': unk_count,
-        'unk_raw': unk_raw
+        'unk_raw': unk_raw,
+        'unk_parsed': parsed
     }
 
 def read_b_14(stream):
@@ -463,16 +534,38 @@ def read_b_20(stream):
     coords_count, = struct.unpack('<I', stream.read(4))
     unk_i1, unk_i2 = struct.unpack('<II', stream.read(8))
     unk_count, = struct.unpack('<I', stream.read(4))
-    unk_floats = list(struct.unpack(f'<{unk_count}f', stream.read(4 * unk_count)))
+    unk_raw = stream.read(4 * unk_count)
     coords = [read_point(stream) for _ in range(coords_count)]
+    parsed = None
+    
+    if(unk_count > 0):
+        parsed = {}
+        raw_stream = BytesIO(unk_raw)
+        parsed["block_subtype"] = B20.T0
+        parsed['unk_f1'] = struct.unpack('<I', raw_stream.read(4))[0]
+        if(unk_count > 1):
+            parsed['unk_sh1'] = struct.unpack('<H', raw_stream.read(2))[0]
+            parsed['unk_sh2'] = struct.unpack('<H', raw_stream.read(2))[0]
+            if(parsed['unk_sh2'] == 3):
+                parsed["block_subtype"] = B20.T3
+                parsed['unk_i1'] = struct.unpack('<I', raw_stream.read(4))[0]
+            elif(parsed['unk_sh2'] == 5):
+                parsed["block_subtype"] = B20.T5
+                parsed['unk_f11'] = struct.unpack('<f', raw_stream.read(4))[0]
+            elif(parsed['unk_sh2'] == 6):
+                parsed["block_subtype"] = B20.T6
+                parsed["name1"] = res.read_cstring(raw_stream)
+                parsed["name2"] = res.read_cstring(raw_stream)
+
     return {
         'bound1': bound1,
         'coords_count': coords_count,
         'unk_i1': unk_i1,
         'unk_i2': unk_i2,
         'unk_count': unk_count,
-        'unk_floats': unk_floats,
-        'coords': coords
+        'unk_raw': unk_raw,
+        'coords': coords,
+        'unk_parsed': parsed
     }
 
 def read_b_21(stream):
@@ -501,16 +594,27 @@ def read_b_23(stream):
     unk_i1, = struct.unpack('<I', stream.read(4))
     surface, = struct.unpack('<I', stream.read(4))
     unk_count, = struct.unpack('<I', stream.read(4))
-    unk_floats = list(struct.unpack(f'<{unk_count}f', stream.read(4 * unk_count)))
+    unk_raw = stream.read(4 * unk_count)
     verts_count, = struct.unpack('<I', stream.read(4))
     verts = [read_vert_23(stream) for _ in range(verts_count)]
+    parsed = None
+    if(unk_count > 0):
+        parsed = {}
+        raw_stream = BytesIO(unk_raw)
+        parsed['unk_f1'] = struct.unpack('<f', raw_stream.read(4))[0]
+        if(unk_count > 1):
+            parsed['unk_f2'] = struct.unpack('<f', raw_stream.read(4))[0]
+            if(unk_count > 2):
+                parsed['unk_f3'] = struct.unpack('<f', raw_stream.read(4))[0]
+        
     return {
         'unk_i1': unk_i1,
         'surface': surface,
         'unk_count': unk_count,
-        'unk_floats': unk_floats,
+        'unk_raw': unk_raw,
         'verts_count': verts_count,
-        'verts': verts
+        'verts': verts,
+        'unk_parsed': parsed
     }
 
 def read_vert_23(stream):

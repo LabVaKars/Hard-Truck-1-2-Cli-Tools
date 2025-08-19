@@ -146,6 +146,49 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_i2'])
                 row.append(block_data['unk_count'])
+                
+                if(block_data['unk_parsed'] is not None):
+                    sub_data = block_data['unk_parsed']
+                    block_subtype = sub_data['block_subtype']
+
+                    if block_subtype == b3dr.B13.T4095:
+                        subrow.append(sub_data['room_name'])
+                    elif block_subtype == b3dr.B13.T31:
+                        subrow.extend(b3dr.read_as_array(sub_data['p1'])) 
+                        subrow.extend(b3dr.read_as_array(sub_data['p2'])) 
+                        subrow.append(sub_data['unk_i1'])
+                    elif block_subtype == b3dr.B13.T30:
+                        subrow.append(sub_data['speed'])
+                        subrow.extend(b3dr.read_as_array(sub_data['rot'])) 
+                    elif block_subtype == b3dr.B13.T10\
+                    or block_subtype == b3dr.B13.T11\
+                    or block_subtype == b3dr.B13.T24:
+                        if(sub_data.get("p1") is not None):
+                            subrow.extend(b3dr.read_as_array(sub_data['p1'])) 
+                            subrow.extend(b3dr.read_as_array(sub_data['rot1'])) 
+                        else:
+                            subrow.extend([None, None, None, None, None, None])
+
+                        if(sub_data.get("p2") is not None):
+                            subrow.extend(b3dr.read_as_array(sub_data['p2'])) 
+                            subrow.extend(b3dr.read_as_array(sub_data['rot2'])) 
+                        else:
+                            subrow.extend([None, None, None, None, None, None]) 
+                        
+                        if(sub_data.get("p3") is not None):
+                            subrow.extend(b3dr.read_as_array(sub_data['p3'])) 
+                            subrow.extend(b3dr.read_as_array(sub_data['rot3'])) 
+                        else:
+                            subrow.extend([None, None, None, None, None, None]) 
+                        subrow.append(sub_data['room_name'])
+                            
+                    elif block_subtype == b3dr.B13.T23:
+                        subrow.extend(b3dr.read_as_array(sub_data['p1'])) 
+                        subrow.append(sub_data['radius'])
+
+                    elif block_subtype == b3dr.B13.T16:
+                        subrow.append(sub_data['water_height'])
+
             elif block_type == 14:
                 block_data = b3dr.read_b_14(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -194,6 +237,30 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['unk_i1'])
                 row.append(block_data['unk_i2'])
                 row.append(block_data['unk_count'])
+                
+                if(block_data['unk_parsed'] is not None):
+                    sub_data = block_data['unk_parsed']
+                    block_subtype = sub_data['block_subtype']
+
+                    if block_subtype == b3dr.B20.T0\
+                    or block_subtype == b3dr.B20.T3\
+                    or block_subtype == b3dr.B20.T5\
+                    or block_subtype == b3dr.B20.T6:
+                        subrow.append(sub_data['unk_f1'])
+                        if(sub_data.get('unk_sh1') is not None):
+                            subrow.append(sub_data['unk_sh1'])
+                            subrow.append(sub_data['unk_sh2'])
+                        else:
+                            subrow.extend([None, None])
+
+                    if block_subtype == b3dr.B20.T3:
+                        subrow.append(sub_data['unk_i1'])
+                    elif block_subtype == b3dr.B20.T5:
+                        subrow.append(sub_data['unk_f11'])
+                    elif block_subtype == b3dr.B20.T6:
+                        subrow.append(sub_data['name1'])
+                        subrow.append(sub_data['name2'])
+
             elif block_type == 21:
                 block_data = b3dr.read_b_21(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['bound1'])) 
@@ -211,6 +278,21 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                 row.append(block_data['surface'])
                 row.append(block_data['unk_count'])
                 row.append(block_data['verts_count'])
+                if(block_data['unk_parsed'] is not None):
+                    sub_data = block_data['unk_parsed']
+                    row.append(sub_data['unk_f1'])
+                    if sub_data.get('unk_f2') is not None:
+                        row.append(sub_data['unk_f2'])
+                    else:
+                        row.append(None)
+                    if sub_data.get('unk_f3') is not None:
+                        row.append(sub_data['unk_f3'])
+                    else:
+                        row.append(None)
+
+                else:
+                    row.extend([None, None, None])
+
             elif block_type == 24:
                 block_data = b3dr.read_b_24(b3d_stream)
                 row.extend(b3dr.read_as_array(block_data['coord1'])) 

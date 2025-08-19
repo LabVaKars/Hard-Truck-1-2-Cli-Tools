@@ -27,7 +27,10 @@ b3dBlocks = [
 ]
 
 b3dSubBlocks = [
-    rb3d.B40.TREE, rb3d.B40.DYNGLOW, rb3d.B40.PEOPLE, rb3d.B40.SPARKLES
+    rb3d.B40.TREE, rb3d.B40.DYNGLOW, rb3d.B40.PEOPLE, rb3d.B40.SPARKLES,
+    rb3d.B13.T10, rb3d.B13.T11, rb3d.B13.T16, rb3d.B13.T23,
+    rb3d.B13.T24, rb3d.B13.T30, rb3d.B13.T31, rb3d.B13.T4095,
+    rb3d.B20.T0, rb3d.B20.T3, rb3d.B20.T5, rb3d.B20.T6
 ]
 
 def readName(file):
@@ -62,6 +65,93 @@ def tabUV(name, isInt = False):
 
 def getBlockColumnBySubType(blockType, subType, noTypes = False):
     blockColumns = ""
+    
+    if blockType == 20:
+        if subType == rb3d.B20.T0:
+            blockColumns = """
+                unk_f1 FLOAT,
+                unk_sh1 INT,
+                unk_sh2 INT
+            """
+        elif subType == rb3d.B20.T3:
+            blockColumns = """
+                unk_f1 FLOAT,
+                unk_sh1 INT,
+                unk_sh2 INT,
+                unk_f11 FLOAT
+            """
+        elif subType == rb3d.B20.T5:
+            blockColumns = """
+                unk_f1 FLOAT,
+                unk_sh1 INT,
+                unk_sh2 INT,
+                unk_i1 INT
+            """
+        elif subType == rb3d.B20.T6:
+            blockColumns = """
+                unk_f1 FLOAT,
+                unk_sh1 INT,
+                unk_sh2 INT,
+                name1 VARCHAR(32),
+                name2 VARCHAR(32)
+            """
+
+    if blockType == 13:
+        if subType == rb3d.B13.T10 \
+        or subType == rb3d.B13.T11 \
+        or subType == rb3d.B13.T24:
+            blockColumns = """
+                {},
+                {},
+                {},
+                {},
+                {},
+                {},
+                room_name VARCHAR(32)
+            """.format(
+                tabPoint("p1"),
+                tabPoint("rot1"),
+                tabPoint("p2"),
+                tabPoint("rot2"),
+                tabPoint("p3"),
+                tabPoint("rot3")
+            )
+
+        elif subType == rb3d.B13.T4095:
+            blockColumns = """
+                module_name VARCHAR(32)
+            """
+
+        elif subType == rb3d.B13.T31:
+            blockColumns = """
+                {},
+                {},
+                unk_i1 INT
+            """.format(
+                tabPoint('p1'),
+                tabPoint('p2')
+            )
+
+        elif subType == rb3d.B13.T30:
+            blockColumns = """
+                speed FLOAT,
+                {}
+            """.format(
+                tabPoint('rot')
+            )
+
+        elif subType == rb3d.B13.T23:
+            blockColumns = """
+                {},
+                rad FLOAT
+            """.format(
+                tabPoint('rot')
+            )
+
+        elif subType == rb3d.B13.T16:
+            blockColumns = """
+                water_height FLOAT
+            """
     
     if blockType == 40:
         if subType == rb3d.B40.TREE:
@@ -290,7 +380,10 @@ def getBlockColumnByType(blockType, noTypes = False):
             int1 INT,
             surface INT,
             unk_cnt INT,
-            poly_cnt INT
+            poly_cnt INT,
+            extra_f1 FLOAT,
+            extra_f2 FLOAT,
+            extra_f3 FLOAT
         """
     elif blockType == 24:
         blockColumns = """
@@ -555,7 +648,7 @@ def insertBySubType(con, blockType, subType, row):
 
     cur.execute(sqlStatement, row)
     id = cur.lastrowid
-    con.commit()
+    # con.commit()
     return id
 
 def insertByType(con, blockType, row):
@@ -578,7 +671,7 @@ def insertByType(con, blockType, row):
 
     cur.execute(sqlStatement, row)
     id = cur.lastrowid
-    con.commit()
+    # con.commit()
     return id
 
 def dropDbStruct(con):
@@ -586,16 +679,18 @@ def dropDbStruct(con):
     cur = con.cursor()
 
     for blockType in b3dBlocks:
-        cur.execute("""
+        sqlStatement = """
             DROP TABLE IF EXISTS b_{}
-        """.format(blockType))
+        """.format(blockType)
+        cur.execute(sqlStatement)
 
     for blockEnum in b3dSubBlocks:
         blockType = int(blockEnum.__class__.__name__[1:])
-        subType = blockEnum
-        cur.execute("""
+        subType = blockEnum.value
+        sqlStatement = """
             DROP TABLE IF EXISTS b_{}_{}
-        """.format(blockType, subType))
+        """.format(blockType, subType)
+        cur.execute(sqlStatement)
 
     con.commit()
 

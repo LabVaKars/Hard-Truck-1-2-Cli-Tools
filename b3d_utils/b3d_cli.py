@@ -2,6 +2,7 @@ import logging
 import sys
 import argparse
 import os
+import time
 
 import remove_b3d
 import merge_b3d
@@ -29,8 +30,9 @@ def parse_items(value):
     items = []
     if value.startswith('@'):
         filepath = value[1:]
+        print(filepath)
         if not os.path.isfile(filepath):
-            raise argparse.ArgumentTypeError(f"File not found: {filepath}")
+            raise argparse.ArgumentTypeError("File not found: {filepath}".format(filepath))
         with open(filepath, 'r') as f:
             items = f.readline().strip().split(',')
     else:
@@ -163,6 +165,9 @@ sqlite_parser.add_argument('--drop', action='store_true', help="Drop DB before p
 args = parser.parse_args()
 print(args)
 if args.format == 'b3d':
+    log.info("{} {} started".format(args.format, args.command))
+    t = time.perf_counter()
+    
     if args.command == 'extract':
 
         res_params = common.get_res_params(
@@ -188,8 +193,14 @@ if args.format == 'b3d':
         
     elif args.command == 'sqlite':
         sqlite_b3d.b3dsqlite(args.i, args.db, args.drop)
+    
+    t = time.perf_counter() - t
+    log.info("{} {} finished: {}s".format(args.format, args.command, t))
 
 elif args.format == 'res':
+    
+    log.info("{} {} started".format(args.format, args.command))
+    t = time.perf_counter()
     
     if args.command == 'extract':
 
@@ -240,3 +251,6 @@ elif args.format == 'res':
     elif args.command == 'pack':
 
         pack_res.respack(args.i, args.o, args.tga_debug)
+
+    t = time.perf_counter() - t
+    log.info("{} {} finished: {}s".format(args.format, args.command, t))
