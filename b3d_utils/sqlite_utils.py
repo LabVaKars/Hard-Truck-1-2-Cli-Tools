@@ -29,7 +29,7 @@ b3dBlocks = [
 b3dSubBlocks = [
     rb3d.B40.TREE, rb3d.B40.DYNGLOW, rb3d.B40.PEOPLE, rb3d.B40.SPARKLES,
     rb3d.B13.T10, rb3d.B13.T11, rb3d.B13.T16, rb3d.B13.T23,
-    rb3d.B13.T24, rb3d.B13.T30, rb3d.B13.T31, rb3d.B13.T4095,
+    rb3d.B13.T24, rb3d.B13.T29, rb3d.B13.T30, rb3d.B13.T31, rb3d.B13.T4095,
     rb3d.B20.T0, rb3d.B20.T3, rb3d.B20.T5, rb3d.B20.T6
 ]
 
@@ -78,7 +78,7 @@ def getBlockColumnBySubType(blockType, subType, noTypes = False):
                 unk_f1 FLOAT,
                 unk_sh1 INT,
                 unk_sh2 INT,
-                unk_f11 FLOAT
+                unk_sh3 INT
             """
         elif subType == rb3d.B20.T5:
             blockColumns = """
@@ -126,7 +126,7 @@ def getBlockColumnBySubType(blockType, subType, noTypes = False):
             blockColumns = """
                 {},
                 {},
-                unk_i1 INT
+                unk_f1 FLOAT
             """.format(
                 tabPoint('p1'),
                 tabPoint('p2')
@@ -136,6 +136,14 @@ def getBlockColumnBySubType(blockType, subType, noTypes = False):
             blockColumns = """
                 speed FLOAT,
                 {}
+            """.format(
+                tabPoint('rot')
+            )
+
+        elif subType == rb3d.B13.T29:
+            blockColumns = """
+                {},
+                rad FLOAT
             """.format(
                 tabPoint('rot')
             )
@@ -645,6 +653,11 @@ def insertBySubType(con, blockType, subType, row):
         INSERT INTO b_{}_{}(block_id {})
         VALUES ({})
     """.format(blockType, subType.value, blockColumns, getPlaceholders(count))
+    
+    if (len(row) < count):
+        row.extend([None] * (len(row) - count))
+    
+    # print(sqlStatement)
 
     cur.execute(sqlStatement, row)
     id = cur.lastrowid
@@ -668,6 +681,9 @@ def insertByType(con, blockType, row):
         INSERT INTO b_{}(b3dmodule, b3dname, parent_id, parent_type {})
         VALUES ({})
     """.format(blockType, blockColumns, getPlaceholders(count))
+    
+    if (len(row) < count):
+        row.extend([None] * (len(row) - count))
 
     cur.execute(sqlStatement, row)
     id = cur.lastrowid

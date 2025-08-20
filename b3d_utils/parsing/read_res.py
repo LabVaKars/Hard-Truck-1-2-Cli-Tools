@@ -8,7 +8,7 @@ def read_cstring(stream):
         if c == b'\x00' or c == b'':
             break
         chars.append(c)
-    return b''.join(chars).decode('utf-8')
+    return b''.join(chars).decode('cp1251')
 
 def read_file_entry(stream):
     item_value = read_cstring(stream)

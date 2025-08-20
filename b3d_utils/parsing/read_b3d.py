@@ -22,6 +22,7 @@ class B13(enum.Enum):
     T4095 = 'T4095'
     T31 = 'T31'
     T30 = 'T30'
+    T29 = 'T29'
     T24 = 'T24'
     T23 = 'T23'
     T16 = 'T16'
@@ -401,16 +402,22 @@ def read_b_13(stream):
             parsed["block_subtype"] = B13.T31
             parsed["p1"] = read_point(raw_stream)
             parsed["p2"] = read_point(raw_stream)
-            parsed["unk_i1"] = struct.unpack('<I', raw_stream.read(4))[0]
+            parsed["unk_f1"] = struct.unpack('<f', raw_stream.read(4))[0]
 
         elif unk_i1 == 30:
             parsed = {}
             parsed["block_subtype"] = B13.T30
-            parsed["speed"] = struct.unpack('<I', raw_stream.read(4))[0]
+            parsed["speed"] = struct.unpack('<f', raw_stream.read(4))[0]
             parsed["rot"] = read_point(raw_stream)
+        
+        elif unk_i1 == 29:
+            parsed = {}
+            parsed["block_subtype"] = B13.T29
+            parsed["p1"] = read_point(raw_stream)
+            parsed["radius"] = struct.unpack('<f', raw_stream.read(4))[0]
 
         elif unk_i1 in (10, 11, 24):
-            unk2_mod = unk_i2 % 10
+            unk2_mod = (unk_count - 3) // 6 
             parsed = {}
             if unk_i1 == 10:
                 parsed["block_subtype"] = B13.T10
@@ -542,16 +549,16 @@ def read_b_20(stream):
         parsed = {}
         raw_stream = BytesIO(unk_raw)
         parsed["block_subtype"] = B20.T0
-        parsed['unk_f1'] = struct.unpack('<I', raw_stream.read(4))[0]
+        parsed['unk_f1'] = struct.unpack('<f', raw_stream.read(4))[0]
         if(unk_count > 1):
             parsed['unk_sh1'] = struct.unpack('<H', raw_stream.read(2))[0]
             parsed['unk_sh2'] = struct.unpack('<H', raw_stream.read(2))[0]
             if(parsed['unk_sh2'] == 3):
                 parsed["block_subtype"] = B20.T3
-                parsed['unk_i1'] = struct.unpack('<I', raw_stream.read(4))[0]
+                parsed['unk_sh3'] = struct.unpack('<H', raw_stream.read(2))[0]
             elif(parsed['unk_sh2'] == 5):
                 parsed["block_subtype"] = B20.T5
-                parsed['unk_f11'] = struct.unpack('<f', raw_stream.read(4))[0]
+                parsed['unk_i1'] = struct.unpack('<I', raw_stream.read(4))[0]
             elif(parsed['unk_sh2'] == 6):
                 parsed["block_subtype"] = B20.T6
                 parsed["name1"] = res.read_cstring(raw_stream)

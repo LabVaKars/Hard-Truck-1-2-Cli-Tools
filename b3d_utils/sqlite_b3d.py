@@ -156,10 +156,13 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                     elif block_subtype == b3dr.B13.T31:
                         subrow.extend(b3dr.read_as_array(sub_data['p1'])) 
                         subrow.extend(b3dr.read_as_array(sub_data['p2'])) 
-                        subrow.append(sub_data['unk_i1'])
+                        subrow.append(sub_data['unk_f1'])
                     elif block_subtype == b3dr.B13.T30:
                         subrow.append(sub_data['speed'])
                         subrow.extend(b3dr.read_as_array(sub_data['rot'])) 
+                    elif block_subtype == b3dr.B13.T29:
+                        subrow.extend(b3dr.read_as_array(sub_data['p1'])) 
+                        subrow.append(sub_data['radius'])
                     elif block_subtype == b3dr.B13.T10\
                     or block_subtype == b3dr.B13.T11\
                     or block_subtype == b3dr.B13.T24:
@@ -254,9 +257,9 @@ def b3dsqlite(b3dFilename, dbFilename, dropDB = False):
                             subrow.extend([None, None])
 
                     if block_subtype == b3dr.B20.T3:
-                        subrow.append(sub_data['unk_i1'])
+                        subrow.append(sub_data['unk_sh3'])
                     elif block_subtype == b3dr.B20.T5:
-                        subrow.append(sub_data['unk_f11'])
+                        subrow.append(sub_data['unk_i1'])
                     elif block_subtype == b3dr.B20.T6:
                         subrow.append(sub_data['name1'])
                         subrow.append(sub_data['name2'])
