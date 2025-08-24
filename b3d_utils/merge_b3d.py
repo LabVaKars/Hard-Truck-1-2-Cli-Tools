@@ -7,6 +7,7 @@ from io import BytesIO
 
 import parsing.read_b3d as b3dr
 import common as c
+import merge_res
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger("merge_b3d")
@@ -58,7 +59,7 @@ def b3dmerge(b3dFromFilepath, b3dToFilepath, outFilepath, toReplace):
     into_og_mat_indexes = {f:i for i, f in enumerate(materials_list_into)}
             
     # Merging materials into one array
-    new_mat_indexes = {f:(i+1) for i, f in enumerate(all_materials_order)}
+    new_mat_indexes = {f:(i) for i, f in enumerate(all_materials_order)}
     from_mat_index_mapping = {from_og_mat_indexes[k]: new_mat_indexes[k] for k in from_og_mat_indexes if k in new_mat_indexes}
     into_mat_index_mapping = {into_og_mat_indexes[k]: new_mat_indexes[k] for k in into_og_mat_indexes if k in new_mat_indexes}
 
@@ -84,9 +85,9 @@ def b3dmerge(b3dFromFilepath, b3dToFilepath, outFilepath, toReplace):
     for root_name, root in all_roots.items():
         for i, tx in enumerate(root["texnums"]):
             if root["is_from"]:
-                tx['val'] = from_mat_index_mapping[tx['val']-1]
+                tx['val'] = from_mat_index_mapping[tx['val']]
             else:
-                tx['val'] = into_mat_index_mapping[tx['val']-1]
+                tx['val'] = into_mat_index_mapping[tx['val']]
             root["data"].seek(tx["pos"], 0)
             root["data"].write(struct.pack("<I", tx["val"]))
 
@@ -94,3 +95,12 @@ def b3dmerge(b3dFromFilepath, b3dToFilepath, outFilepath, toReplace):
 
     with open(outFilepath, 'wb') as outFile:
         outFile.write(outBuffer.getvalue())
+    
+    basename, ext = os.path.splitext(b3dFromFilepath)
+    resFromFilepath = "{}.res".format(basename)
+    basename, ext = os.path.splitext(b3dToFilepath)
+    resToFilepath = "{}.res".format(basename)
+    basename, ext = os.path.splitext(outFilepath)
+    resOutFilepath = "{}.res".format(basename)
+
+    merge_res.resmerge(resFromFilepath, resToFilepath, resOutFilepath, toReplace)

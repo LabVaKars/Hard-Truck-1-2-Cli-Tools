@@ -215,7 +215,7 @@ def b3dextract(b3dFilename, resFilename, outpath, indlNodes, toSplit, toUseNodeR
         used_materials = sorted([idx_to_mat[idx] for idx in list(current_texnums)])
 
         og_mat_indexes = {f:i for i, f in enumerate(materials_list)}
-        new_mat_indexes = {f:(i+1) for i, f in enumerate(used_materials)}
+        new_mat_indexes = {f:(i) for i, f in enumerate(used_materials)}
         mat_index_mapping = {og_mat_indexes[k]: new_mat_indexes[k] for k in og_mat_indexes if k in new_mat_indexes}            
 
         #replace with new texture indexes in b3d file
