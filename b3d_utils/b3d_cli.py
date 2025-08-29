@@ -4,6 +4,8 @@ import argparse
 import os
 import time
 
+import sqlite_way
+
 import remove_b3d
 import merge_b3d
 import extract_b3d
@@ -113,7 +115,7 @@ pack_parser.add_argument('--tga-debug', action='store_true', help="Save TGA file
 
 #b3d utils
 b3d_parser = format_subparser.add_parser("b3d", help="Commands to work with .b3d files")
-subparser = b3d_parser.add_subparsers(dest="command", help="Commands to work with b3d. files")
+subparser = b3d_parser.add_subparsers(dest="command", help="Commands to work with .b3d files")
 
 # extract - parses b3d. Find root elements in structure(by finding nodes, that aren't referenced(18)) or uses root name file instead(--roots) 
 extract_parser = subparser.add_parser("extract", help="Extract selected b3d nodes with all references into separate files")
@@ -159,6 +161,15 @@ merge_parser.add_argument('--o', help="Path to b3d file to save merge result. If
 
 sqlite_parser = subparser.add_parser("sqlite", help="Save b3d params in SQLite database")
 sqlite_parser.add_argument('--i', help="Path to b3d file", required=True)
+sqlite_parser.add_argument('--db', help="Path to sqlite file", required=True)
+sqlite_parser.add_argument('--drop', action='store_true', help="Drop DB before parsing", default=False)
+
+#way utils
+way_parser = format_subparser.add_parser("way", help="Commands to work with .way files")
+subparser = way_parser.add_subparsers(dest="command", help="Commands to work with .way files")
+
+sqlite_parser = subparser.add_parser("sqlite", help="Save way params in SQLite database")
+sqlite_parser.add_argument('--i', help="Path to way file", required=True)
 sqlite_parser.add_argument('--db', help="Path to sqlite file", required=True)
 sqlite_parser.add_argument('--drop', action='store_true', help="Drop DB before parsing", default=False)
 
@@ -247,10 +258,23 @@ elif args.format == 'res':
             selected_sections = SECTIONS
             
         unpack_res.resunpack(args.i, args.o, selected_sections, args.tga_debug)
+        # unpack_res.resunpack(args.i, args.o, selected_sections, args.tga_debug, args.img_format)
         
     elif args.command == 'pack':
 
         pack_res.respack(args.i, args.o, args.tga_debug)
+        # pack_res.respack(args.i, args.o, args.tga_debug, args.img_format)
+
+    t = time.perf_counter() - t
+    log.info("{} {} finished: {}s".format(args.format, args.command, t))
+
+elif args.format == 'way':
+    
+    log.info("{} {} started".format(args.format, args.command))
+    t = time.perf_counter()
+    
+    if args.command == 'sqlite':
+        sqlite_way.waysqlite(args.i, args.db, args.drop)
 
     t = time.perf_counter() - t
     log.info("{} {} finished: {}s".format(args.format, args.command, t))

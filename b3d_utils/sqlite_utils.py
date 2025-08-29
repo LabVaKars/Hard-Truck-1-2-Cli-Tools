@@ -19,6 +19,8 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger("sqlite_utils")
 log.setLevel(logging.DEBUG)
 
+wayBlocks = ["RSEG", "RNOD"]
+
 b3dBlocks = [
     0,1,2,3,4,5,6,7,8,9,10,
     11,12,13,14,15,16,17,18,19,20,
@@ -581,6 +583,35 @@ def getBlockColumnByType(blockType, noTypes = False):
 
     return blockColumns
 
+def getWayColumnByType(blockType, noTypes = False):
+    blockColumns = ""
+    if blockType == "RSEG":
+        blockColumns = """
+            attr1 INT,
+            attr2 FLOAT,
+            attr3 INT,
+            width1 FLOAT,
+            width2 FLOAT,
+            unk_name VARCHAR(32),
+            point_cnt INT
+        """
+    elif blockType == "RNOD":
+        blockColumns = """
+            name VARCHAR(32),
+            oriented INT,
+            {},
+            flag INT
+        """.format(
+            tabPoint("pos")
+        )
+        
+    if noTypes:
+        blockColumns = blockColumns.replace(" INT", "")
+        blockColumns = blockColumns.replace(" FLOAT", "")
+        blockColumns = blockColumns.replace(" VARCHAR(32)", "")
+
+    return blockColumns
+
 insertSubTypeColumns = {}
 for blockEnum in b3dSubBlocks:
     blockType = int(blockEnum.__class__.__name__[1:])
@@ -590,6 +621,29 @@ for blockEnum in b3dSubBlocks:
 insertTypeColumns = {}
 for blockType in b3dBlocks:
     insertTypeColumns[blockType] = getBlockColumnByType(blockType, True)
+
+insertWayTypeColumns = {}
+for blockType in wayBlocks:
+    insertWayTypeColumns[blockType] = getWayColumnByType(blockType, True)
+
+def createWayTableByType(con, blockType):
+    cur = con.cursor()
+    
+    sqlStatement = """
+        CREATE TABLE IF NOT EXISTS b_{}(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            room_name VARCHAR(32)
+            {}
+        )
+    """
+
+    blockColumns = getWayColumnByType(blockType)
+
+    blockColumns = ","+blockColumns
+    sqlStatement = sqlStatement.format(blockType, blockColumns)
+    
+    cur.execute(sqlStatement)
+
 
 def createTableBySubType(con, blockType, subType):
     
@@ -639,6 +693,26 @@ def getPlaceholders(cnt):
         arr = ['?'] * cnt
         return ",".join(arr)
     return ""
+
+def insertWayByType(con, blockType, row):
+    cur = con.cursor()
+    count = (insertWayTypeColumns[blockType]).count(",")+1+1
+    
+    blockColumns = insertWayTypeColumns[blockType]
+    blockColumns = ","+blockColumns
+
+    sqlStatement = """
+        INSERT INTO b_{}(room_name {})
+        VALUES ({})
+    """.format(blockType, blockColumns, getPlaceholders(count))
+    
+    if (len(row) < count):
+        row.extend([None] * (len(row) - count))
+
+    cur.execute(sqlStatement, row)
+    id = cur.lastrowid
+    # con.commit()
+    return id
 
 def insertBySubType(con, blockType, subType, row):
     
@@ -694,6 +768,12 @@ def dropDbStruct(con):
 
     cur = con.cursor()
 
+    for blockType in wayBlocks:
+        sqlStatement = """
+            DROP TABLE IF EXISTS b_{}
+        """.format(blockType)
+        cur.execute(sqlStatement)
+
     for blockType in b3dBlocks:
         sqlStatement = """
             DROP TABLE IF EXISTS b_{}
@@ -711,6 +791,9 @@ def dropDbStruct(con):
     con.commit()
 
 def createDbStruct(con):
+
+    for blockType in wayBlocks:
+        createWayTableByType(con, blockType)
 
     for blockType in b3dBlocks:
         createTableByType(con, blockType)
