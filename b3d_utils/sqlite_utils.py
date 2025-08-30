@@ -588,6 +588,13 @@ def getWayColumnByType(blockType, noTypes = False):
     if blockType == "RSEG":
         blockColumns = """
             attr1 INT,
+            is_curve INT,
+            is_path INT,
+            is_right_lane INT,
+            is_left_lane INT,
+            is_fillable INT,
+            is_hidden INT,
+            no_traffic INT,
             attr2 FLOAT,
             attr3 INT,
             width1 FLOAT,
@@ -632,6 +639,7 @@ def createWayTableByType(con, blockType):
     sqlStatement = """
         CREATE TABLE IF NOT EXISTS b_{}(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            module_name VARCHAR(32),
             room_name VARCHAR(32)
             {}
         )
@@ -696,13 +704,13 @@ def getPlaceholders(cnt):
 
 def insertWayByType(con, blockType, row):
     cur = con.cursor()
-    count = (insertWayTypeColumns[blockType]).count(",")+1+1
+    count = (insertWayTypeColumns[blockType]).count(",")+1+2
     
     blockColumns = insertWayTypeColumns[blockType]
     blockColumns = ","+blockColumns
 
     sqlStatement = """
-        INSERT INTO b_{}(room_name {})
+        INSERT INTO b_{}(module_name, room_name {})
         VALUES ({})
     """.format(blockType, blockColumns, getPlaceholders(count))
     

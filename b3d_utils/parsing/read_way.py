@@ -35,9 +35,7 @@ def read_header(stream):
             stream.seek(-4, 1)
             break
 
-    return {
-        "module_name": module_name
-    }
+    return module_name
 
 def read_room(stream):
     grom_size = struct.unpack("<i",stream.read(4))[0]

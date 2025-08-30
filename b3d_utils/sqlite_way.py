@@ -16,17 +16,8 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger("sqlite_way")
 log.setLevel(logging.DEBUG)
 
-def openclose(file, path):
-    if file.tell() == os.path.getsize(path):
-        log.debug ('EOF')
-        return 1
-    else:
-        return 2
-
 def waysqlite(wayFilename, dbFilename, dropDB = False):
 
-    rootObjects = {}
-    
     wayBasename = os.path.basename(wayFilename)[:-4] #cut extension
     
     con = sqlite3.connect(dbFilename)
@@ -39,8 +30,8 @@ def waysqlite(wayFilename, dbFilename, dropDB = False):
         sqlu.dropDbStruct(con)
     sqlu.createDbStruct(con)
 
-    wayr.read_header(b3d_stream)
-
+    module_name = wayr.read_header(b3d_stream)
+    
     # read blocks
     objName = ''
     eof = os.path.getsize(wayFilename)
@@ -57,11 +48,18 @@ def waysqlite(wayFilename, dbFilename, dropDB = False):
         block_type = block["block_type"]
         block_data = block["block_data"]
             
-        row = [room_name]
+        row = [module_name, room_name]
         
             # Switch based on block_type
         if block_type == "RSEG":
             row.append(block_data["attr1"])
+            row.append(block_data["attr1"] & 0b1)
+            row.append((block_data["attr1"] & 0b10) >> 1)
+            row.append((block_data["attr1"] & 0b100) >> 2)
+            row.append((block_data["attr1"] & 0b1000) >> 3)
+            row.append((block_data["attr1"] & 0b10000) >> 4)
+            row.append((block_data["attr1"] & 0b100000) >> 5)
+            row.append((block_data["attr1"] & 0b1000000) >> 6)
             row.append(block_data["attr2"])
             row.append(block_data["attr3"])
             row.append(block_data["width1"])
